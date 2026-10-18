@@ -199,7 +199,7 @@ func initDevice() (*streamdeck.Device, error) {
 		if !found {
 			fmt.Fprintln(os.Stderr, "Can't find device. Available devices:")
 			for _, v := range d {
-				fmt.Fprintf(os.Stderr, "Serial %s (%d buttons)\n", v.Serial, dev.Keys)
+				fmt.Fprintf(os.Stderr, "Serial %s (%d buttons)\n", v.Serial, v.Keys)
 			}
 			os.Exit(1)
 		}
