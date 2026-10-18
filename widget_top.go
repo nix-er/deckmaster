@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/shirou/gopsutil/cpu"
-	"github.com/shirou/gopsutil/mem"
+	"github.com/shirou/gopsutil/v4/cpu"
+	"github.com/shirou/gopsutil/v4/mem"
 )
 
 // TopWidget is a widget displaying the current CPU/MEM usage as a bar.
