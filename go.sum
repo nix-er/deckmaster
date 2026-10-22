@@ -36,8 +36,8 @@ github.com/mitchellh/go-homedir v1.1.0 h1:lukF9ziXFxDFPkA1vsr5zpc1XuPDn/wFntq5mG
 github.com/mitchellh/go-homedir v1.1.0/go.mod h1:SfyaCUpYCn1Vlf4IUYiD9fPX4A5wJrkLzIz1N1q0pr0=
 github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646 h1:zYyBkD/k9seD2A7fsi6Oo2LfFZAehjjQMERAvZLEDnQ=
 github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646/go.mod h1:jpp1/29i3P1S/RLdc7JQKbRpFeM1dOBd8T9ki5s+AY8=
-github.com/nix-er/streamdeck v0.0.0-20261022014941-564a6a901e09 h1:LLnqU8zfwKoZVVoRvYR/yCTOPXRDT05Tm/DGkxEVBBc=
-github.com/nix-er/streamdeck v0.0.0-20261022014941-564a6a901e09/go.mod h1:loDhgyT5Rd46fhXoPrlGDCueud6wN7nTR58P2FKkTzM=
+github.com/nix-er/streamdeck v0.5.0 h1:ztmD21AgncsHu6cFzG595zcMISdD0K4phEhMHklGLcc=
+github.com/nix-er/streamdeck v0.5.0/go.mod h1:loDhgyT5Rd46fhXoPrlGDCueud6wN7nTR58P2FKkTzM=
 github.com/power-devops/perfstat v0.0.0-20260916203055-22a1a467d9f0 h1:XA01Vk/wv9YikCi1V51yRzIHPMT5of9+cMpZoZvDn/M=
 github.com/power-devops/perfstat v0.0.0-20260916203055-22a1a467d9f0/go.mod h1:OmDBASR4679mdNQnz2pUhc2G8CO2JrUAVFDRBDP/hJE=
 github.com/shirou/gopsutil/v4 v4.26.9 h1:CaBo/hBFqvlJoLvAQEKdHdf5GD97/MN2ACfyv63+2Ig=

@@ -14,7 +14,7 @@ require (
 	github.com/lucasb-eyer/go-colorful v1.4.1
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646
-	github.com/nix-er/streamdeck v0.0.0-20261022014941-564a6a901e09
+	github.com/nix-er/streamdeck v0.5.0
 	github.com/shirou/gopsutil/v4 v4.26.9
 	golang.org/x/image v0.47.0
 )
