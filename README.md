@@ -38,7 +38,7 @@ An application to control your Elgato Stream Deck on Linux
 
 ### From source
 
-Make sure you have a working Go environment (Go 1.17 or higher is required).
+Make sure you have a working Go environment (Go 1.26 or higher is required).
 See the [install instructions](https://golang.org/doc/install.html).
 
 To install deckmaster, simply run:
@@ -47,25 +47,30 @@ To install deckmaster, simply run:
     cd deckmaster
     go build
 
+Or install it directly with:
+
+    go install github.com/nix-er/deckmaster@latest
+
+Building requires cgo (a C compiler) for USB access.
+
+
 ## System Setup
 
 On Linux you need to set up some `udev` rules to be able to access the device as
-a regular user. Edit `/etc/udev/rules.d/99-streamdeck.rules` and add these lines:
+a regular user. Copy [udev/70-streamdeck.rules](udev/70-streamdeck.rules) to
+`/etc/udev/rules.d/`:
 
-```
-SUBSYSTEM=="usb", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="0060", MODE:="666", GROUP="plugdev", SYMLINK+="streamdeck"
-SUBSYSTEM=="usb", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="006d", MODE:="666", GROUP="plugdev", SYMLINK+="streamdeck"
-SUBSYSTEM=="usb", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="0080", MODE:="666", GROUP="plugdev", SYMLINK+="streamdeck"
-SUBSYSTEM=="usb", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="0063", MODE:="666", GROUP="plugdev", SYMLINK+="streamdeck-mini"
-SUBSYSTEM=="usb", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="0090", MODE:="666", GROUP="plugdev", SYMLINK+="streamdeck-mini"
-SUBSYSTEM=="usb", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="006c", MODE:="666", GROUP="plugdev", SYMLINK+="streamdeck-xl"
-SUBSYSTEM=="usb", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="008f", MODE:="666", GROUP="plugdev", SYMLINK+="streamdeck-xl"
-SUBSYSTEM=="usb", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="0084", MODE:="666", GROUP="plugdev", SYMLINK+="streamdeck-plus"
-```
+    sudo cp udev/70-streamdeck.rules /etc/udev/rules.d/
+    sudo udevadm control --reload-rules
+    sudo udevadm trigger
 
-Make sure your user is part of the `plugdev` group and reload the rules with
-`sudo udevadm control --reload-rules`. Unplug and re-plug the device, and you
-should be good to go.
+The rules use `TAG+="uaccess"`, which gives the user logged in on the local
+seat access to the device, so no extra group membership is needed. The file name
+must sort before `73-seat-late.rules`, or `uaccess` has no effect. Unplug and
+re-plug the device, and you should be good to go.
+
+To emulate key presses, deckmaster also needs write access to `/dev/uinput`;
+see the commented rule at the end of the file.
 
 ### Starting deckmaster automatically
 
