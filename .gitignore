@@ -19,3 +19,7 @@ dist/
 
 # direnv
 .envrc
+
+# Nix build output
+result
+result-*

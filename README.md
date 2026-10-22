@@ -53,12 +53,32 @@ Or install it directly with:
 
 Building requires cgo (a C compiler) for USB access.
 
+### Nix
+
+The repository is a Nix flake. To run deckmaster without installing it:
+
+    nix run github:nix-er/deckmaster -- -deck main.deck
+
+To add it to a NixOS configuration, add the flake as an input and use its
+package. The package also ships the udev rules described below:
+
+```nix
+{
+  inputs.deckmaster.url = "github:nix-er/deckmaster";
+
+  # in your NixOS module:
+  environment.systemPackages = [ inputs.deckmaster.packages.${pkgs.stdenv.hostPlatform.system}.default ];
+  services.udev.packages = [ inputs.deckmaster.packages.${pkgs.stdenv.hostPlatform.system}.default ];
+}
+```
+
+`nix develop` opens a shell with Go, a C compiler, golangci-lint and goreleaser.
 
 ## System Setup
 
 On Linux you need to set up some `udev` rules to be able to access the device as
 a regular user. Copy [udev/70-streamdeck.rules](udev/70-streamdeck.rules) to
-`/etc/udev/rules.d/`:
+`/etc/udev/rules.d/` (on NixOS, use `services.udev.packages` as shown above):
 
     sudo cp udev/70-streamdeck.rules /etc/udev/rules.d/
     sudo udevadm control --reload-rules
