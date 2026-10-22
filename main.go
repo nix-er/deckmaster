@@ -14,7 +14,7 @@ import (
 	"github.com/bendahl/uinput"
 	"github.com/godbus/dbus/v5"
 	"github.com/mitchellh/go-homedir"
-	"github.com/muesli/streamdeck"
+	"github.com/nix-er/streamdeck"
 )
 
 var (

@@ -1,4 +1,4 @@
-module github.com/muesli/deckmaster
+module github.com/nix-er/deckmaster
 
 go 1.26.0
 
@@ -13,8 +13,8 @@ require (
 	github.com/jezek/xgbutil v0.0.0-20260124183602-9fd151d6a51a
 	github.com/lucasb-eyer/go-colorful v1.4.1
 	github.com/mitchellh/go-homedir v1.1.0
-	github.com/muesli/streamdeck v0.4.0
 	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646
+	github.com/nix-er/streamdeck v0.0.0-20261022014941-564a6a901e09
 	github.com/shirou/gopsutil/v4 v4.26.9
 	golang.org/x/image v0.47.0
 )
@@ -32,5 +32,3 @@ require (
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	golang.org/x/sys v0.49.0 // indirect
 )
-
-replace github.com/muesli/streamdeck => ../streamdeck

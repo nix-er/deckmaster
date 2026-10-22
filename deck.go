@@ -14,7 +14,7 @@ import (
 
 	"github.com/atotto/clipboard"
 	"github.com/godbus/dbus/v5"
-	"github.com/muesli/streamdeck"
+	"github.com/nix-er/streamdeck"
 )
 
 // Deck is a set of widgets.

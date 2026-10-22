@@ -11,8 +11,8 @@ import (
 
 	"github.com/golang/freetype"
 	"github.com/golang/freetype/truetype"
-	"github.com/muesli/streamdeck"
 	"github.com/nfnt/resize"
+	"github.com/nix-er/streamdeck"
 )
 
 var (

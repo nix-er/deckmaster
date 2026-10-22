@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/muesli/streamdeck"
+	"github.com/nix-er/streamdeck"
 )
 
 func handleActiveWindowChanged(dev *streamdeck.Device, event ActiveWindowChangedEvent) {

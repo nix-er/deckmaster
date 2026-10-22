@@ -1,10 +1,10 @@
 # deckmaster
 
 [![Latest Release](https://img.shields.io/github/release/muesli/deckmaster.svg?style=for-the-badge)](https://github.com/muesli/deckmaster/releases)
-[![Go Doc](https://img.shields.io/badge/godoc-reference-blue.svg?style=for-the-badge)](https://pkg.go.dev/github.com/muesli/deckmaster)
+[![Go Doc](https://img.shields.io/badge/godoc-reference-blue.svg?style=for-the-badge)](https://pkg.go.dev/github.com/nix-er/deckmaster)
 [![Software License](https://img.shields.io/badge/license-MIT-blue.svg?style=for-the-badge)](/LICENSE)
-[![Build Status](https://img.shields.io/github/actions/workflow/status/muesli/deckmaster/build.yml?branch=master&style=for-the-badge)](https://github.com/muesli/deckmaster/actions)
-[![Go ReportCard](https://goreportcard.com/badge/github.com/muesli/deckmaster?style=for-the-badge)](https://goreportcard.com/report/muesli/deckmaster)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/nix-er/deckmaster/build.yml?branch=master&style=for-the-badge)](https://github.com/nix-er/deckmaster/actions)
+[![Go ReportCard](https://goreportcard.com/badge/github.com/nix-er/deckmaster?style=for-the-badge)](https://goreportcard.com/report/nix-er/deckmaster)
 
 An application to control your Elgato Stream Deck on Linux
 
@@ -43,7 +43,7 @@ See the [install instructions](https://golang.org/doc/install.html).
 
 To install deckmaster, simply run:
 
-    git clone https://github.com/muesli/deckmaster.git
+    git clone https://github.com/nix-er/deckmaster.git
     cd deckmaster
     go build
 
@@ -139,7 +139,7 @@ deckmaster -sleep 10m
 
 ## Configuration
 
-You can find a few example configurations in the [decks](https://github.com/muesli/deckmaster/tree/master/decks)
+You can find a few example configurations in the [decks](https://github.com/nix-er/deckmaster/tree/master/decks)
 directory. Edit them to your needs!
 
 ### Widgets
@@ -285,7 +285,7 @@ has to be either `celsius` or `fahrenheit`. If `flatten` is `true` all opaque
 pixels of the condition icon will have the color `color`. In case `theme` is set
 corresponding icons with correct names need to be placed in
 `~/.local/share/deckmaster/themes/[theme]`. The default icons with their
-respective names can be found [here](https://github.com/muesli/deckmaster/tree/master/assets/weather).
+respective names can be found [here](https://github.com/nix-er/deckmaster/tree/master/assets/weather).
 
 ### Actions
 
@@ -321,7 +321,7 @@ Emulate a series of key-presses with delay in between:
   keycode = "Leftctrl-X+500 / Leftctrl-V / Num1"
 ```
 
-A list of available `keycodes` can be found here: [keycodes](https://github.com/muesli/deckmaster/blob/master/keycodes.go)
+A list of available `keycodes` can be found here: [keycodes](https://github.com/nix-er/deckmaster/blob/master/keycodes.go)
 
 #### Paste to clipboard
 
