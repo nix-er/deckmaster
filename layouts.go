@@ -11,18 +11,18 @@ import (
 // Layout contains the data to represent the layout of the widget.
 type Layout struct {
 	frames []image.Rectangle
-	size   int
+	width  int
 	margin int
 	height int
 }
 
-// NewLayout returns a new Layout with the accoriding size.
-func NewLayout(size int) *Layout {
-	margin := size / 18
-	height := size - (margin * 2)
+// NewLayout returns a new Layout for a canvas of the given dimensions.
+func NewLayout(canvas image.Rectangle) *Layout {
+	margin := canvas.Dy() / 18
+	height := canvas.Dy() - (margin * 2)
 
 	return &Layout{
-		size:   size,
+		width:  canvas.Dx(),
 		margin: margin,
 		height: height,
 	}
@@ -66,7 +66,7 @@ func (l *Layout) FormatLayout(frameReps []string, frameCount int) []image.Rectan
 func (l *Layout) defaultFrame(cells int, index int) image.Rectangle {
 	lower := l.margin + (l.height/cells)*index
 	upper := l.margin + (l.height/cells)*(index+1)
-	return image.Rect(0, lower, l.size, upper)
+	return image.Rect(0, lower, l.width, upper)
 }
 
 // Converts the string representation of a rectangle into a image.Rectangle.

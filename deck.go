@@ -17,11 +17,20 @@ import (
 	"github.com/nix-er/streamdeck"
 )
 
+// maxDialSteps limits how often a dial action gets repeated for a single
+// (fast) turn.
+const maxDialSteps = 10
+
 // Deck is a set of widgets.
 type Deck struct {
 	File       string
 	Background image.Image
 	Widgets    []Widget
+
+	// DialWidgets are shown on the touch screen segments above the dials.
+	DialWidgets []Widget
+	Dials       map[uint8]DialConfig
+	Swipe       SwipeConfig
 }
 
 // LoadDeck loads a deck configuration.
@@ -69,6 +78,25 @@ func LoadDeck(dev *streamdeck.Device, base string, deck string) (*Deck, error) {
 		}
 
 		d.Widgets = append(d.Widgets, w)
+	}
+
+	d.Dials = map[uint8]DialConfig{}
+	for _, c := range dc.Dials {
+		d.Dials[c.Index] = c
+	}
+	d.Swipe = dc.Swipe
+
+	for i := uint8(0); i < dev.Dials; i++ {
+		c, found := d.Dials[i]
+		if !found {
+			c = DialConfig{Index: i}
+		}
+
+		w, err := NewDialWidget(dev, filepath.Dir(path), c)
+		if err != nil {
+			return nil, err
+		}
+		d.DialWidgets = append(d.DialWidgets, w)
 	}
 
 	return &d, nil
@@ -205,9 +233,20 @@ func executeCommand(cmd string) {
 	}
 }
 
-// triggerAction triggers an action.
+// triggerAction triggers the action of a key.
 func (d *Deck) triggerAction(dev *streamdeck.Device, index uint8, hold bool) {
-	for _, w := range d.Widgets {
+	d.triggerWidgetAction(dev, d.Widgets, index, hold)
+}
+
+// triggerDialAction triggers the action of a pressed dial.
+func (d *Deck) triggerDialAction(dev *streamdeck.Device, index uint8, hold bool) {
+	d.triggerWidgetAction(dev, d.DialWidgets, index, hold)
+}
+
+// triggerWidgetAction triggers the (hold) action of the widget with the given
+// index, or the widget's own action if none is configured.
+func (d *Deck) triggerWidgetAction(dev *streamdeck.Device, widgets []Widget, index uint8, hold bool) {
+	for _, w := range widgets {
 		if w.Key() != index {
 			continue
 		}
@@ -224,59 +263,126 @@ func (d *Deck) triggerAction(dev *streamdeck.Device, index uint8, hold bool) {
 			continue
 		}
 
-		if a.Deck != "" {
-			d, err := LoadDeck(dev, filepath.Dir(d.File), a.Deck)
-			if err != nil {
-				fmt.Fprintln(os.Stderr, "Can't load deck:", err)
-				return
-			}
-			if err := dev.Clear(); err != nil {
-				fatal(err)
-				return
+		d.runAction(dev, a)
+	}
+}
+
+// turnDial triggers the left or right action of a dial, once per step.
+func (d *Deck) turnDial(dev *streamdeck.Device, index uint8, steps int8) {
+	dc, ok := d.Dials[index]
+	if !ok {
+		return
+	}
+
+	a := dc.ActionRight
+	n := int(steps)
+	if n < 0 {
+		a = dc.ActionLeft
+		n = -n
+	}
+	if a == nil {
+		return
+	}
+	if n > maxDialSteps {
+		n = maxDialSteps
+	}
+	if a.Deck != "" {
+		// switching decks repeatedly makes no sense
+		n = 1
+	}
+
+	for i := 0; i < n; i++ {
+		d.runAction(dev, a)
+	}
+}
+
+// touchSegment triggers the touch action of the dial below a touch screen
+// segment, or the segment widget's own action if none is configured.
+func (d *Deck) touchSegment(dev *streamdeck.Device, index uint8, hold bool) {
+	dc := d.Dials[index]
+	a := dc.ActionTouch
+	if hold {
+		a = dc.ActionTouchHold
+	}
+	if a != nil {
+		d.runAction(dev, a)
+		return
+	}
+
+	for _, w := range d.DialWidgets {
+		if w.Key() == index {
+			w.TriggerAction(hold)
+		}
+	}
+}
+
+// swipe triggers the action for a swipe to the left or right.
+func (d *Deck) swipe(dev *streamdeck.Device, left bool) {
+	a := d.Swipe.Right
+	if left {
+		a = d.Swipe.Left
+	}
+	if a != nil {
+		d.runAction(dev, a)
+	}
+}
+
+// runAction runs an action.
+func (d *Deck) runAction(dev *streamdeck.Device, a *ActionConfig) {
+	if a.Deck != "" {
+		d, err := LoadDeck(dev, filepath.Dir(d.File), a.Deck)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "Can't load deck:", err)
+			return
+		}
+		if err := dev.Clear(); err != nil {
+			fatal(err)
+			return
+		}
+
+		deck = d
+		deck.updateWidgets()
+	}
+	if a.Keycode != "" {
+		emulateKeyPresses(a.Keycode)
+	}
+	if a.Paste != "" {
+		emulateClipboard(a.Paste)
+	}
+	if a.DBus.Method != "" {
+		executeDBusMethod(a.DBus.Object, a.DBus.Path, a.DBus.Method, a.DBus.Value)
+	}
+	if a.Exec != "" {
+		go executeCommand(a.Exec)
+	}
+	if a.Device != "" {
+		switch {
+		case a.Device == "sleep":
+			if err := dev.Sleep(); err != nil {
+				fatalf("error: %v\n", err)
 			}
 
-			deck = d
-			deck.updateWidgets()
-		}
-		if a.Keycode != "" {
-			emulateKeyPresses(a.Keycode)
-		}
-		if a.Paste != "" {
-			emulateClipboard(a.Paste)
-		}
-		if a.DBus.Method != "" {
-			executeDBusMethod(a.DBus.Object, a.DBus.Path, a.DBus.Method, a.DBus.Value)
-		}
-		if a.Exec != "" {
-			go executeCommand(a.Exec)
-		}
-		if a.Device != "" {
-			switch {
-			case a.Device == "sleep":
-				if err := dev.Sleep(); err != nil {
-					fatalf("error: %v\n", err)
-				}
+		case strings.HasPrefix(a.Device, "brightness"):
+			d.adjustBrightness(dev, strings.TrimPrefix(a.Device, "brightness"))
 
-			case strings.HasPrefix(a.Device, "brightness"):
-				d.adjustBrightness(dev, strings.TrimPrefix(a.Device, "brightness"))
-
-			default:
-				fmt.Fprintln(os.Stderr, "Unrecognized special action:", a.Device)
-			}
+		default:
+			fmt.Fprintln(os.Stderr, "Unrecognized special action:", a.Device)
 		}
 	}
 }
 
 // updateWidgets updates/repaints all the widgets.
 func (d *Deck) updateWidgets() {
-	for _, w := range d.Widgets {
-		if !w.RequiresUpdate() {
-			continue
-		}
+	for _, widgets := range [][]Widget{d.Widgets, d.DialWidgets} {
+		for _, w := range widgets {
+			if !w.RequiresUpdate() {
+				continue
+			}
 
-		// fmt.Println("Repaint", w.Key())
-		if err := w.Update(); err != nil {
-			fatalf("error: %v", err)
+			// fmt.Println("Repaint", w.Key())
+			if err := w.Update(); err != nil {
+				fatalf("error: %v", err)
+			}
 		}
 	}
 }

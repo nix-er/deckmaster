@@ -4,15 +4,17 @@ import (
 	"fmt"
 	"image"
 	"image/color"
-	"image/draw"
+	_ "image/png" // decode PNG icons
+	"math"
 	"os"
 	"path/filepath"
 	"time"
 
-	"github.com/golang/freetype"
-	"github.com/golang/freetype/truetype"
-	"github.com/nfnt/resize"
 	"github.com/nix-er/streamdeck"
+	"golang.org/x/image/draw"
+	"golang.org/x/image/font"
+	"golang.org/x/image/font/opentype"
+	"golang.org/x/image/math/fixed"
 )
 
 var (
@@ -40,6 +42,35 @@ type BaseWidget struct {
 	background image.Image
 	lastUpdate time.Time
 	interval   time.Duration
+
+	// segment is true for widgets shown on a touch screen segment (above
+	// the dial with the same index) instead of a key.
+	segment bool
+}
+
+// canvas returns the area a widget can render on: the key, or the whole touch
+// screen segment.
+func (w *BaseWidget) canvas() image.Rectangle {
+	if w.segment {
+		return image.Rect(0, 0, int(w.dev.ScreenSegmentWidth()), int(w.dev.ScreenHeight))
+	}
+	return image.Rect(0, 0, int(w.dev.Pixels), int(w.dev.Pixels))
+}
+
+// pixels returns the size of a square image filling the height of the canvas.
+func (w *BaseWidget) pixels() uint {
+	if w.segment {
+		return w.dev.ScreenHeight
+	}
+	return w.dev.Pixels
+}
+
+// dpi returns the DPI of the display a widget renders on.
+func (w *BaseWidget) dpi() uint {
+	if w.segment {
+		return w.dev.ScreenDPI
+	}
+	return w.dev.DPI
 }
 
 // Key returns the key a widget is mapped to.
@@ -93,56 +124,75 @@ func NewBaseWidget(dev *streamdeck.Device, base string, index uint8, action, act
 // NewWidget initializes a widget.
 func NewWidget(dev *streamdeck.Device, base string, kc KeyConfig, bg image.Image) (Widget, error) {
 	bw := NewBaseWidget(dev, base, kc.Index, kc.Action, kc.ActionHold, bg)
+	return newWidget(bw, kc.Widget)
+}
 
-	switch kc.Widget.ID {
+// NewDialWidget initializes the widget shown on the touch screen segment
+// above a dial. Dials don't need a widget, the segment then stays blank.
+func NewDialWidget(dev *streamdeck.Device, base string, dc DialConfig) (Widget, error) {
+	bw := NewBaseWidget(dev, base, dc.Index, dc.Action, dc.ActionHold, nil)
+	bw.segment = true
+	if dc.Widget.ID == "" {
+		return bw, nil
+	}
+	return newWidget(bw, dc.Widget)
+}
+
+func newWidget(bw *BaseWidget, wc WidgetConfig) (Widget, error) {
+	switch wc.ID {
 	case "button":
-		return NewButtonWidget(bw, kc.Widget)
+		return NewButtonWidget(bw, wc)
 
 	case "clock":
-		kc.Widget.Config = make(map[string]interface{})
-		kc.Widget.Config["format"] = "%H;%i;%s"
-		kc.Widget.Config["font"] = "bold;regular;thin"
-		return NewTimeWidget(bw, kc.Widget), nil
+		wc.Config = make(map[string]interface{})
+		wc.Config["format"] = "%H;%i;%s"
+		wc.Config["font"] = "bold;regular;thin"
+		return NewTimeWidget(bw, wc), nil
 
 	case "date":
-		kc.Widget.Config = make(map[string]interface{})
-		kc.Widget.Config["format"] = "%l;%d;%M"
-		kc.Widget.Config["font"] = "regular;bold;regular"
-		return NewTimeWidget(bw, kc.Widget), nil
+		wc.Config = make(map[string]interface{})
+		wc.Config["format"] = "%l;%d;%M"
+		wc.Config["font"] = "regular;bold;regular"
+		return NewTimeWidget(bw, wc), nil
 
 	case "time":
-		return NewTimeWidget(bw, kc.Widget), nil
+		return NewTimeWidget(bw, wc), nil
 
 	case "recentWindow":
-		return NewRecentWindowWidget(bw, kc.Widget)
+		return NewRecentWindowWidget(bw, wc)
 
 	case "top":
-		return NewTopWidget(bw, kc.Widget), nil
+		return NewTopWidget(bw, wc), nil
 
 	case "command":
-		return NewCommandWidget(bw, kc.Widget), nil
+		return NewCommandWidget(bw, wc), nil
 
 	case "weather":
-		return NewWeatherWidget(bw, kc.Widget)
+		return NewWeatherWidget(bw, wc)
 	}
 
 	// unknown widget ID
-	return nil, fmt.Errorf("Unknown widget with ID %s", kc.Widget.ID)
+	return nil, fmt.Errorf("unknown widget with ID %s", wc.ID)
 }
 
 // renders the widget including its background image.
 func (w *BaseWidget) render(dev *streamdeck.Device, fg image.Image) error {
 	w.lastUpdate = time.Now()
 
-	pixels := int(dev.Pixels)
-	img := image.NewRGBA(image.Rect(0, 0, pixels, pixels))
+	img := image.NewRGBA(w.canvas())
 	if w.background != nil {
 		draw.Draw(img, img.Bounds(), w.background, image.Point{}, draw.Over)
 	}
 	if fg != nil {
-		draw.Draw(img, img.Bounds(), fg, image.Point{}, draw.Over)
+		// center images smaller than the canvas, e.g. square widget images
+		// on a touch screen segment
+		offset := image.Pt((img.Bounds().Dx()-fg.Bounds().Dx())/2, (img.Bounds().Dy()-fg.Bounds().Dy())/2)
+		draw.Draw(img, fg.Bounds().Add(offset), fg, fg.Bounds().Min, draw.Over)
 	}
 
+	if w.segment {
+		return dev.SetScreenSegmentImage(w.key, img)
+	}
 	return dev.SetImage(w.key, img)
 }
 
@@ -205,41 +255,42 @@ func drawImage(img *image.RGBA, icon image.Image, size int, pt image.Point) erro
 		pt = image.Pt(pt.X, int(ycenter))
 	}
 
-	icon = resize.Resize(uint(size), uint(size), icon, resize.Bilinear)
 	rect := image.Rect(pt.X, pt.Y, pt.X+size, pt.Y+size)
-	draw.Draw(img, rect, icon, image.Point{0, 0}, draw.Src)
+	draw.CatmullRom.Scale(img, rect, icon, icon.Bounds(), draw.Src, nil)
 
 	return nil
 }
 
-func drawString(img *image.RGBA, bounds image.Rectangle, ttf *truetype.Font, text string, dpi uint, fontsize float64, color color.Color, pt image.Point) {
-	c := ftContext(img, ttf, dpi, fontsize)
-
+func drawString(img *image.RGBA, bounds image.Rectangle, ttf *opentype.Font, text string, dpi uint, fontsize float64, color color.Color, pt image.Point) {
 	if fontsize <= 0 {
 		// pick biggest available height to fit the string
-		fontsize, _ = maxPointSize(text,
-			ftContext(img, ttf, dpi, fontsize), dpi,
-			bounds.Dx(), bounds.Dy())
-		c.SetFontSize(fontsize)
+		fontsize, _ = maxPointSize(text, ttf, dpi, bounds.Dx(), bounds.Dy())
+	}
+
+	face, err := newFace(ttf, dpi, fontsize)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Can't render string: %s\n", err)
+		return
 	}
 
 	if pt.X < 0 {
 		// center horizontally
-		extent, _ := ftContext(img, ttf, dpi, fontsize).DrawString(text, freetype.Pt(0, 0))
-		actwidth := extent.X.Floor()
+		actwidth := font.MeasureString(face, text).Floor()
 		xcenter := float64(bounds.Dx())/2.0 - (float64(actwidth) / 2.0)
 		pt = image.Pt(bounds.Min.X+int(xcenter), pt.Y)
 	}
 	if pt.Y < 0 {
 		// center vertically
-		actheight := c.PointToFixed(fontsize).Round()
-		ycenter := float64(bounds.Dy()/2.0) + (float64(actheight) / 2.6)
+		actheight := math.Round(fontsize * float64(dpi) / 72.0)
+		ycenter := float64(bounds.Dy()/2.0) + (actheight / 2.6)
 		pt = image.Pt(pt.X, bounds.Min.Y+int(ycenter))
 	}
 
-	c.SetSrc(image.NewUniform(color))
-	if _, err := c.DrawString(text, freetype.Pt(pt.X, pt.Y)); err != nil {
-		fmt.Fprintf(os.Stderr, "Can't render string: %s\n", err)
-		return
+	d := font.Drawer{
+		Dst:  img,
+		Src:  image.NewUniform(color),
+		Face: face,
+		Dot:  fixed.P(pt.X, pt.Y),
 	}
+	d.DrawString(text)
 }

@@ -8,13 +8,11 @@ require (
 	github.com/bendahl/uinput v1.7.0
 	github.com/flopp/go-findfont v0.1.0
 	github.com/godbus/dbus/v5 v5.2.4
-	github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0
 	github.com/jezek/xgb v1.3.1
 	github.com/jezek/xgbutil v0.0.0-20260124183602-9fd151d6a51a
 	github.com/lucasb-eyer/go-colorful v1.4.1
 	github.com/mitchellh/go-homedir v1.1.0
-	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646
-	github.com/nix-er/streamdeck v0.5.0
+	github.com/nix-er/streamdeck v0.6.0
 	github.com/shirou/gopsutil/v4 v4.26.9
 	golang.org/x/image v0.47.0
 )
@@ -31,4 +29,5 @@ require (
 	github.com/tklauser/numcpus v0.12.0 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	golang.org/x/sys v0.49.0 // indirect
+	golang.org/x/text v0.43.0 // indirect
 )

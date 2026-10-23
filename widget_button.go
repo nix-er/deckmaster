@@ -76,47 +76,58 @@ func (w *ButtonWidget) SetImage(img image.Image) {
 
 // Update renders the widget.
 func (w *ButtonWidget) Update() error {
-	size := int(w.dev.Pixels)
-	margin := size / 18
-	height := size - (margin * 2)
-	img := image.NewRGBA(image.Rect(0, 0, size, size))
+	canvas := w.canvas()
+	margin := canvas.Dy() / 18
+	height := canvas.Dy() - (margin * 2)
+	img := image.NewRGBA(canvas)
 
-	if w.label != "" {
-		iconsize := int((float64(height) / 3.0) * 2.0)
-		bounds := img.Bounds()
-
-		if w.icon != nil {
-			err := drawImage(img,
-				w.icon,
-				iconsize,
-				image.Pt(-1, margin))
-
-			if err != nil {
-				return err
-			}
-
-			bounds.Min.Y += iconsize + margin
-			bounds.Max.Y -= margin
-		}
-
-		drawString(img,
-			bounds,
-			ttfFont,
-			w.label,
-			w.dev.DPI,
-			w.fontsize,
-			w.color,
-			image.Pt(-1, -1))
-	} else if w.icon != nil {
-		err := drawImage(img,
-			w.icon,
-			height,
-			image.Pt(-1, -1))
-
-		if err != nil {
-			return err
-		}
+	var err error
+	switch {
+	case w.label != "" && w.icon != nil && canvas.Dx() > canvas.Dy():
+		err = w.drawIconBesideLabel(img, margin, height)
+	case w.label != "":
+		err = w.drawLabel(img, margin, height)
+	case w.icon != nil:
+		err = drawImage(img, w.icon, height, image.Pt(-1, -1))
+	}
+	if err != nil {
+		return err
 	}
 
 	return w.render(w.dev, img)
+}
+
+// drawIconBesideLabel draws the icon on the left and the label on the right,
+// for wide canvases (touch screen segments).
+func (w *ButtonWidget) drawIconBesideLabel(img *image.RGBA, margin, height int) error {
+	iconsize := height * 3 / 4
+	if err := drawImage(img, w.icon, iconsize, image.Pt(2*margin, -1)); err != nil {
+		return err
+	}
+
+	bounds := image.Rect(iconsize+3*margin, margin, img.Bounds().Dx()-margin, img.Bounds().Dy()-margin)
+	drawString(img, bounds, ttfFont, w.label, w.dpi(), w.fontsize, w.color, image.Pt(-1, -1))
+	return nil
+}
+
+// drawLabel draws the label, below the icon if there is one.
+func (w *ButtonWidget) drawLabel(img *image.RGBA, margin, height int) error {
+	bounds := img.Bounds()
+	if bounds.Dx() > bounds.Dy() {
+		// keep labels on neighbouring touch screen segments apart
+		bounds = bounds.Inset(margin * 2)
+	}
+
+	if w.icon != nil {
+		iconsize := int((float64(height) / 3.0) * 2.0)
+		if err := drawImage(img, w.icon, iconsize, image.Pt(-1, margin)); err != nil {
+			return err
+		}
+
+		bounds.Min.Y += iconsize + margin
+		bounds.Max.Y -= margin
+	}
+
+	drawString(img, bounds, ttfFont, w.label, w.dpi(), w.fontsize, w.color, image.Pt(-1, -1))
+	return nil
 }

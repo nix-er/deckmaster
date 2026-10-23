@@ -51,14 +51,38 @@ type KeyConfig struct {
 // Keys is a slice of keys.
 type Keys []KeyConfig
 
-// DeckConfig is the central configuration struct.
-type DeckConfig struct {
-	Background string `toml:"background,omitempty"`
-	Parent     string `toml:"parent,omitempty"`
-	Keys       Keys   `toml:"keys"`
+// DialConfig holds the configuration for a dial (Stream Deck+) and the touch
+// screen segment above it.
+type DialConfig struct {
+	Index           uint8         `toml:"index"`
+	Widget          WidgetConfig  `toml:"widget,omitempty"`
+	Action          *ActionConfig `toml:"action,omitempty"`
+	ActionHold      *ActionConfig `toml:"action_hold,omitempty"`
+	ActionLeft      *ActionConfig `toml:"action_left,omitempty"`
+	ActionRight     *ActionConfig `toml:"action_right,omitempty"`
+	ActionTouch     *ActionConfig `toml:"action_touch,omitempty"`
+	ActionTouchHold *ActionConfig `toml:"action_touch_hold,omitempty"`
 }
 
-// MergeDeckConfig merges key configuration from multiple configs.
+// Dials is a slice of dials.
+type Dials []DialConfig
+
+// SwipeConfig holds the actions for swipes on the touch screen.
+type SwipeConfig struct {
+	Left  *ActionConfig `toml:"left,omitempty"`
+	Right *ActionConfig `toml:"right,omitempty"`
+}
+
+// DeckConfig is the central configuration struct.
+type DeckConfig struct {
+	Background string      `toml:"background,omitempty"`
+	Parent     string      `toml:"parent,omitempty"`
+	Keys       Keys        `toml:"keys"`
+	Dials      Dials       `toml:"dials,omitempty"`
+	Swipe      SwipeConfig `toml:"swipe,omitempty"`
+}
+
+// MergeDeckConfig merges key and dial configuration from multiple configs.
 func MergeDeckConfig(base, parent *DeckConfig) DeckConfig {
 	merged := make(map[byte]KeyConfig)
 	for _, config := range parent.Keys {
@@ -73,11 +97,39 @@ func MergeDeckConfig(base, parent *DeckConfig) DeckConfig {
 		keys = append(keys, config)
 	}
 
+	mergedDials := make(map[byte]DialConfig)
+	for _, config := range parent.Dials {
+		mergedDials[config.Index] = config
+	}
+	for _, config := range base.Dials {
+		mergedDials[config.Index] = config
+	}
+
+	dials := make(Dials, 0, len(mergedDials))
+	for _, config := range mergedDials {
+		dials = append(dials, config)
+	}
+
 	background := base.Background
 	if background == "" {
 		background = parent.Background
 	}
-	return DeckConfig{background, base.Parent, keys}
+
+	swipe := base.Swipe
+	if swipe.Left == nil {
+		swipe.Left = parent.Swipe.Left
+	}
+	if swipe.Right == nil {
+		swipe.Right = parent.Swipe.Right
+	}
+
+	return DeckConfig{
+		Background: background,
+		Parent:     base.Parent,
+		Keys:       keys,
+		Dials:      dials,
+		Swipe:      swipe,
+	}
 }
 
 // LoadConfigFromFile loads a DeckConfig from a file while checking for circular

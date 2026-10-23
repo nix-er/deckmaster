@@ -80,7 +80,7 @@ func (w *TopWidget) Update() error {
 		w.fillColor = color.RGBA{166, 155, 182, 255}
 	}
 
-	size := int(w.dev.Pixels)
+	size := int(w.pixels())
 	margin := size / 18
 	img := image.NewRGBA(image.Rect(0, 0, size, size))
 
@@ -106,7 +106,7 @@ func (w *TopWidget) Update() error {
 		bounds,
 		ttfFont,
 		strconv.FormatInt(int64(value), 10),
-		w.dev.DPI,
+		w.dpi(),
 		13,
 		w.color,
 		image.Pt(-1, -1))
@@ -120,7 +120,7 @@ func (w *TopWidget) Update() error {
 		bounds,
 		ttfFont,
 		"% "+label,
-		w.dev.DPI,
+		w.dpi(),
 		-1,
 		w.color,
 		image.Pt(-1, -1))

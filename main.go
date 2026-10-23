@@ -88,10 +88,18 @@ func eventLoop(dev *streamdeck.Device, tch chan interface{}) error {
 	hup := make(chan os.Signal, 1)
 	signal.Notify(hup, syscall.SIGHUP)
 
-	var keyStates sync.Map
-	keyTimestamps := make(map[uint8]time.Time)
+	// long presses are detected on separate goroutines, but their actions run
+	// here, so only this goroutine writes to the device
+	holds := make(chan func(), 8)
 
-	kch, err := dev.ReadKeys()
+	keys := newPressTracker("key", holds, func(index uint8, hold bool) {
+		deck.triggerAction(dev, index, hold)
+	})
+	dials := newPressTracker("dial", holds, func(index uint8, hold bool) {
+		deck.triggerDialAction(dev, index, hold)
+	})
+
+	ich, err := dev.ReadInput()
 	if err != nil {
 		return err
 	}
@@ -100,41 +108,34 @@ func eventLoop(dev *streamdeck.Device, tch chan interface{}) error {
 		case <-time.After(100 * time.Millisecond):
 			deck.updateWidgets()
 
-		case k, ok := <-kch:
+		case e, ok := <-ich:
 			if !ok {
 				if err = dev.Open(); err != nil {
+					return err
+				}
+				if ich, err = dev.ReadInput(); err != nil {
 					return err
 				}
 				continue
 			}
 
-			var state bool
-			if ks, ok := keyStates.Load(k.Index); ok {
-				state = ks.(bool)
-			}
-			keyStates.Store(k.Index, k.Pressed)
+			switch e := e.(type) {
+			case streamdeck.Key:
+				keys.handle(e.Index, e.Pressed)
 
-			if state && !k.Pressed {
-				// key was released
-				if time.Since(keyTimestamps[k.Index]) < longPressDuration {
-					verbosef("Triggering short action for key %d", k.Index)
-					deck.triggerAction(dev, k.Index, false)
-				}
-			}
-			if !state && k.Pressed {
-				// key was pressed
-				go func() {
-					// launch timer to observe keystate
-					time.Sleep(longPressDuration)
+			case streamdeck.DialPress:
+				dials.handle(e.Index, e.Pressed)
 
-					if state, ok := keyStates.Load(k.Index); ok && state.(bool) {
-						// key still pressed
-						verbosef("Triggering long action for key %d", k.Index)
-						deck.triggerAction(dev, k.Index, true)
-					}
-				}()
+			case streamdeck.DialTurn:
+				verbosef("Dial %d turned %d step(s)", e.Index, e.Steps)
+				deck.turnDial(dev, e.Index, e.Steps)
+
+			case streamdeck.Touch:
+				handleTouch(dev, e)
 			}
-			keyTimestamps[k.Index] = time.Now()
+
+		case hold := <-holds:
+			hold()
 
 		case e := <-tch:
 			switch event := e.(type) {
@@ -164,6 +165,95 @@ func eventLoop(dev *streamdeck.Device, tch chan interface{}) error {
 		case <-sigs:
 			fmt.Println("Shutting down...")
 			return nil
+		}
+	}
+}
+
+// minSwipeDistance is the minimum horizontal distance in pixels for a swipe to
+// trigger an action.
+const minSwipeDistance = 100
+
+// pressTracker turns press/release events of keys or dials into short and long
+// press actions.
+type pressTracker struct {
+	name       string
+	states     sync.Map
+	timestamps map[uint8]time.Time
+	holds      chan<- func()
+	trigger    func(index uint8, hold bool)
+}
+
+// newPressTracker returns a pressTracker calling trigger for short presses
+// directly, and sending long presses to holds.
+func newPressTracker(name string, holds chan<- func(), trigger func(index uint8, hold bool)) *pressTracker {
+	return &pressTracker{
+		name:       name,
+		timestamps: make(map[uint8]time.Time),
+		holds:      holds,
+		trigger:    trigger,
+	}
+}
+
+// handle processes a press or release of the key or dial with the given index.
+func (p *pressTracker) handle(index uint8, pressed bool) {
+	var state bool
+	if s, ok := p.states.Load(index); ok {
+		state = s.(bool)
+	}
+	p.states.Store(index, pressed)
+
+	if state && !pressed {
+		// was released
+		if time.Since(p.timestamps[index]) < longPressDuration {
+			verbosef("Triggering short action for %s %d", p.name, index)
+			p.trigger(index, false)
+		}
+	}
+	if !state && pressed {
+		// was pressed
+		go func() {
+			// launch timer to observe the state
+			time.Sleep(longPressDuration)
+
+			if s, ok := p.states.Load(index); ok && s.(bool) {
+				// still pressed
+				p.holds <- func() {
+					verbosef("Triggering long action for %s %d", p.name, index)
+					p.trigger(index, true)
+				}
+			}
+		}()
+	}
+	p.timestamps[index] = time.Now()
+}
+
+// handleTouch handles taps, long presses and swipes on the touch screen.
+func handleTouch(dev *streamdeck.Device, t streamdeck.Touch) {
+	switch t.Type {
+	case streamdeck.TouchTap, streamdeck.TouchLongPress:
+		width := dev.ScreenSegmentWidth()
+		if width == 0 {
+			return
+		}
+		s := min(uint(t.X)/width, uint(dev.ScreenSegments)-1)
+		segment := uint8(s) //nolint:gosec // s < dev.ScreenSegments
+
+		hold := t.Type == streamdeck.TouchLongPress
+		action := "tapped"
+		if hold {
+			action = "long-pressed"
+		}
+		verbosef("Touch screen segment %d %s at %d,%d", segment, action, t.X, t.Y)
+		deck.touchSegment(dev, segment, hold)
+
+	case streamdeck.TouchSwipe:
+		distance := int(t.EndX) - int(t.X)
+		verbosef("Touch screen swiped from %d,%d to %d,%d", t.X, t.Y, t.EndX, t.EndY)
+		switch {
+		case distance <= -minSwipeDistance:
+			deck.swipe(dev, true)
+		case distance >= minSwipeDistance:
+			deck.swipe(dev, false)
 		}
 	}
 }
@@ -214,6 +304,10 @@ func initDevice() (*streamdeck.Device, error) {
 	}
 	verbosef("Found device with serial %s (%d buttons, firmware %s)",
 		dev.Serial, dev.Keys, ver)
+	if dev.Dials > 0 || dev.ScreenWidth > 0 {
+		verbosef("Device has %d dials and a %dx%d touch screen",
+			dev.Dials, dev.ScreenWidth, dev.ScreenHeight)
+	}
 
 	if err := dev.Reset(); err != nil {
 		return &dev, err
@@ -240,6 +334,10 @@ func initDevice() (*streamdeck.Device, error) {
 }
 
 func run() error {
+	if err := loadFonts(); err != nil {
+		return err
+	}
+
 	// initialize device
 	dev, err := initDevice()
 	if dev != nil {
