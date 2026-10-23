@@ -14,7 +14,7 @@
     in
     {
       packages = forAllSystems (pkgs: {
-        deckmaster = pkgs.buildGoModule {
+        deckmaster = pkgs.buildGo127Module {
           pname = "deckmaster";
           version = self.shortRev or self.dirtyShortRev or "dev";
           src = nixpkgs.lib.cleanSource ./.;
@@ -54,11 +54,12 @@
       devShells = forAllSystems (pkgs: {
         default = pkgs.mkShell {
           packages = with pkgs; [
-            go
+            go_1_27
             gcc
             pkg-config
             golangci-lint
             goreleaser
+            govulncheck
           ];
         };
       });
