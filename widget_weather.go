@@ -5,8 +5,9 @@ import (
 	"embed"
 	"fmt"
 	"image"
-	"io/ioutil"
+	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -16,6 +17,12 @@ import (
 
 //go:embed assets/weather
 var weatherImages embed.FS
+
+// maxWeatherResponse limits how much of a weather response gets read.
+const maxWeatherResponse = 4096
+
+// weatherClient fetches weather data, giving up on unresponsive servers.
+var weatherClient = &http.Client{Timeout: 10 * time.Second}
 
 func weatherImage(name string) image.Image {
 	b, err := weatherImages.ReadFile(name)
@@ -114,16 +121,17 @@ func (w *WeatherData) Fetch() {
 	}
 	verbosef("Refreshing weather data...")
 
-	url := "http://wttr.in/" + w.location + "?format=%x+%t" + formatUnit(w.unit)
+	reqURL := "https://wttr.in/" + url.PathEscape(w.location) + "?format=%x+%t" + formatUnit(w.unit)
 
-	resp, err := http.Get(url) //nolint:gosec
+	resp, err := weatherClient.Get(reqURL)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "can't fetch weather data:", err)
 		return
 	}
 	defer resp.Body.Close() //nolint:errcheck
 
-	body, err := ioutil.ReadAll(resp.Body)
+	// the response is a few bytes, don't read more than that
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxWeatherResponse))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "can't read weather data:", err)
 		return
