@@ -1,0 +1,17 @@
+# Second example deck for the Stream Deck+. It inherits all keys and dials of
+# plus.deck and only replaces dial 3. Swipe either way to go back.
+parent = "plus.deck"
+
+[[dials]]
+  index = 3
+  [dials.widget]
+    id = "top"
+    [dials.widget.config]
+      mode = "cpu"
+      fillColor = "#d497de"
+
+[swipe]
+  [swipe.left]
+    deck = "plus.deck"
+  [swipe.right]
+    deck = "plus.deck"

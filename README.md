@@ -15,6 +15,7 @@ An application to control your Elgato Stream Deck on Linux
 - Background images
 - Brightness control
 - Supports different actions for short & long presses
+- Stream Deck+ dials and touch screen
 - Comes with a collection of widgets:
     - Buttons
     - Time (with formatting)
@@ -415,6 +416,58 @@ This even works recursively:
 ```toml
 parent = "another.deck"
 ```
+
+Dials and swipe actions are inherited the same way.
+
+### Stream Deck+ dials and touch screen
+
+The Stream Deck+ has four dials, with a touch screen segment above each of
+them. A dial and its segment are configured together in a `[[dials]]` entry,
+with `index` 0 being the leftmost dial. All settings are optional:
+
+```toml
+[[dials]]
+  index = 0
+  # widget shown on the touch screen segment above the dial
+  [dials.widget]
+    id = "button"
+    [dials.widget.config]
+      icon = "/some/volume.png"
+      label = "Volume"
+  # pressing the dial (action_hold for long presses)
+  [dials.action]
+    keycode = "Mute"
+  # turning the dial counterclockwise / clockwise
+  [dials.action_left]
+    keycode = "VolumeDown"
+  [dials.action_right]
+    keycode = "VolumeUp"
+  # tapping the segment (action_touch_hold for long presses)
+  [dials.action_touch]
+    exec = "pavucontrol"
+```
+
+All widgets and actions work on dials. Buttons, `time` and `command` widgets
+use the whole segment (a button shows its icon left of its label); the others
+are drawn as a square in the middle of their segment. The touch screen can't
+show fine detail, so large icons and short labels work best, e.g. a single
+line `format = "%H:%i"` for a clock. A fast turn sends several steps at once;
+the turn action then runs once per step (at most 10 times), except for deck
+switches.
+Tapping a segment without an `action_touch` triggers the widget's own action
+(e.g. activating a window for `recentWindow`).
+
+Swiping across the touch screen can trigger an action, e.g. to switch decks:
+
+```toml
+[swipe]
+  [swipe.left]
+    deck = "next.deck"
+  [swipe.right]
+    deck = "previous.deck"
+```
+
+See [decks/plus.deck](decks/plus.deck) for a complete example.
 
 ## More Decks!
 

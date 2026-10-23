@@ -1,0 +1,121 @@
+# Example deck for the Stream Deck+: 8 keys, plus 4 dials with a touch screen
+# segment above each dial. Swipe left on the touch screen for plus-media.deck.
+
+[[keys]]
+  index = 0
+  [keys.widget]
+    id = "top"
+    [keys.widget.config]
+      mode = "cpu"
+      fillColor = "#d497de"
+
+[[keys]]
+  index = 1
+  [keys.widget]
+    id = "top"
+    [keys.widget.config]
+      mode = "memory"
+
+[[keys]]
+  index = 2
+  [keys.widget]
+    id = "date"
+
+[[keys]]
+  index = 3
+  [keys.widget]
+    id = "clock"
+
+[[keys]]
+  index = 4
+  [keys.widget]
+    id = "button"
+    [keys.widget.config]
+      icon = "assets/go-previous.png"
+  [keys.action]
+    keycode = "Previoussong"
+
+[[keys]]
+  index = 5
+  [keys.widget]
+    id = "button"
+    [keys.widget.config]
+      label = "Play"
+  [keys.action]
+    keycode = "Playpause"
+
+[[keys]]
+  index = 6
+  [keys.widget]
+    id = "button"
+    [keys.widget.config]
+      icon = "assets/go-next.png"
+  [keys.action]
+    keycode = "Nextsong"
+
+[[keys]]
+  index = 7
+  [keys.widget]
+    id = "button"
+    [keys.widget.config]
+      label = "Sleep"
+  [keys.action]
+    device = "sleep"
+
+# Dial 0: volume. Press to mute, turn to change the volume.
+[[dials]]
+  index = 0
+  [dials.widget]
+    id = "button"
+    [dials.widget.config]
+      icon = "assets/volume-high.png"
+      label = "Volume"
+  [dials.action]
+    keycode = "Mute"
+  [dials.action_left]
+    keycode = "VolumeDown"
+  [dials.action_right]
+    keycode = "VolumeUp"
+
+# Dial 1: brightness of the Stream Deck. Press to reset it to 80%.
+[[dials]]
+  index = 1
+  [dials.widget]
+    id = "button"
+    [dials.widget.config]
+      label = "Bright"
+  [dials.action]
+    device = "brightness=80"
+  [dials.action_left]
+    device = "brightness-5"
+  [dials.action_right]
+    device = "brightness+5"
+
+# Dial 2: media. Press to play/pause, turn to skip tracks.
+[[dials]]
+  index = 2
+  [dials.widget]
+    id = "button"
+    [dials.widget.config]
+      label = "Media"
+  [dials.action]
+    keycode = "Playpause"
+  [dials.action_left]
+    keycode = "Previoussong"
+  [dials.action_right]
+    keycode = "Nextsong"
+
+# Dial 3: a clock on the touch screen. Tap it to put the Stream Deck to sleep.
+[[dials]]
+  index = 3
+  [dials.widget]
+    id = "time"
+    [dials.widget.config]
+      format = "%H:%i"
+      font = "bold"
+  [dials.action_touch]
+    device = "sleep"
+
+[swipe]
+  [swipe.left]
+    deck = "plus-media.deck"
