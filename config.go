@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"image/color"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"reflect"
 	"strconv"
@@ -150,7 +150,7 @@ func LoadConfigFromFile(base, path string, files []string) (DeckConfig, error) {
 		}
 	}
 
-	file, err := ioutil.ReadFile(filename)
+	file, err := os.ReadFile(filename)
 	if err != nil {
 		return config, err
 	}
@@ -185,7 +185,7 @@ func (c DeckConfig) Save(filename string) error {
 		return err
 	}
 
-	return ioutil.WriteFile(filename, b.Bytes(), 0600)
+	return os.WriteFile(filename, b.Bytes(), 0600)
 }
 
 // ConfigValue tries to convert an interface{} to the desired type.

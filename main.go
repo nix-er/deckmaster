@@ -1,3 +1,5 @@
+// Deckmaster is an application to control Elgato Stream Deck devices on
+// Linux.
 package main
 
 import (
@@ -344,13 +346,13 @@ func run() error {
 		defer closeDevice(dev)
 	}
 	if err != nil {
-		return fmt.Errorf("Unable to initialize Stream Deck: %s", err)
+		return fmt.Errorf("unable to initialize Stream Deck: %w", err)
 	}
 
 	// initialize dbus connection
 	dbusConn, err = dbus.SessionBus()
 	if err != nil {
-		return fmt.Errorf("Unable to connect to dbus: %s", err)
+		return fmt.Errorf("unable to connect to dbus: %w", err)
 	}
 
 	// initialize xorg connection and track window focus
@@ -376,7 +378,7 @@ func run() error {
 	// load deck
 	deck, err = LoadDeck(dev, ".", *deckFile)
 	if err != nil {
-		return fmt.Errorf("Can't load deck: %s", err)
+		return fmt.Errorf("can't load deck: %w", err)
 	}
 	deck.updateWidgets()
 
