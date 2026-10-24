@@ -12,7 +12,6 @@ import (
 	"strings"
 
 	"github.com/BurntSushi/toml"
-	colorful "github.com/lucasb-eyer/go-colorful"
 )
 
 // DBusConfig describes a dbus action.
@@ -215,15 +214,20 @@ func (c DeckConfig) Save(filename string) error {
 	return os.WriteFile(filename, b.Bytes(), 0600)
 }
 
-// ConfigValue tries to convert an interface{} to the desired type.
+// ConfigValue tries to convert an interface{} to the desired type. A nil
+// value (an option that isn't set) leaves dst unchanged.
 func ConfigValue(v interface{}, dst interface{}) error {
+	if v == nil {
+		return nil
+	}
+
 	switch d := dst.(type) {
 	case *string:
 		switch vt := v.(type) {
 		case string:
 			*d = vt
 		default:
-			return fmt.Errorf("unhandled type %+v for string conversion", reflect.TypeOf(vt))
+			return fmt.Errorf("expected a string, got %v", reflect.TypeOf(vt))
 		}
 
 	case *bool:
@@ -231,12 +235,15 @@ func ConfigValue(v interface{}, dst interface{}) error {
 		case bool:
 			*d = vt
 		case string:
-			b, _ := strconv.ParseBool(vt)
+			b, err := strconv.ParseBool(vt)
+			if err != nil {
+				return fmt.Errorf("expected true or false, got %q", vt)
+			}
 			*d = b
 		case int64:
 			*d = vt > 0
 		default:
-			return fmt.Errorf("unhandled type %+v for bool conversion", reflect.TypeOf(vt))
+			return fmt.Errorf("expected true or false, got %v", reflect.TypeOf(vt))
 		}
 
 	case *int64:
@@ -246,10 +253,13 @@ func ConfigValue(v interface{}, dst interface{}) error {
 		case float64:
 			*d = int64(vt)
 		case string:
-			x, _ := strconv.ParseInt(vt, 0, 64)
+			x, err := strconv.ParseInt(vt, 0, 64)
+			if err != nil {
+				return fmt.Errorf("expected an integer, got %q", vt)
+			}
 			*d = x
 		default:
-			return fmt.Errorf("unhandled type %+v for uint8 conversion", reflect.TypeOf(vt))
+			return fmt.Errorf("expected an integer, got %v", reflect.TypeOf(vt))
 		}
 
 	case *float64:
@@ -259,19 +269,25 @@ func ConfigValue(v interface{}, dst interface{}) error {
 		case float64:
 			*d = vt
 		case string:
-			x, _ := strconv.ParseFloat(vt, 64)
+			x, err := strconv.ParseFloat(vt, 64)
+			if err != nil {
+				return fmt.Errorf("expected a number, got %q", vt)
+			}
 			*d = x
 		default:
-			return fmt.Errorf("unhandled type %+v for float64 conversion", reflect.TypeOf(vt))
+			return fmt.Errorf("expected a number, got %v", reflect.TypeOf(vt))
 		}
 
 	case *color.Color:
 		switch vt := v.(type) {
 		case string:
-			x, _ := colorful.Hex(vt)
+			x, err := parseColor(vt)
+			if err != nil {
+				return err
+			}
 			*d = x
 		default:
-			return fmt.Errorf("unhandled type %+v for color.Color conversion", reflect.TypeOf(vt))
+			return fmt.Errorf("expected a color like \"#ff8000\", got %v", reflect.TypeOf(vt))
 		}
 
 	case *[]string:
@@ -279,21 +295,23 @@ func ConfigValue(v interface{}, dst interface{}) error {
 		case string:
 			*d = strings.Split(vt, ";")
 		default:
-			return fmt.Errorf("unhandled type %+v for []string conversion", reflect.TypeOf(vt))
+			return fmt.Errorf("expected a string, got %v", reflect.TypeOf(vt))
 		}
 
 	case *[]color.Color:
 		switch vt := v.(type) {
 		case string:
-			cls := strings.Split(vt, ";")
 			var clrs []color.Color
-			for _, cl := range cls {
-				clr, _ := colorful.Hex(cl)
+			for _, cl := range strings.Split(vt, ";") {
+				clr, err := parseColor(cl)
+				if err != nil {
+					return err
+				}
 				clrs = append(clrs, clr)
 			}
 			*d = clrs
 		default:
-			return fmt.Errorf("unhandled type %+v for []color.Color conversion", reflect.TypeOf(vt))
+			return fmt.Errorf("expected colors like \"#ff8000;#ffffff\", got %v", reflect.TypeOf(vt))
 		}
 
 	default:
@@ -301,4 +319,20 @@ func ConfigValue(v interface{}, dst interface{}) error {
 	}
 
 	return nil
+}
+
+// configReader reads widget options, remembering the first error.
+type configReader struct {
+	config map[string]interface{}
+	err    error
+}
+
+// read reads the option with the given name into dst, if it is set.
+func (r *configReader) read(name string, dst interface{}) {
+	if r.err != nil {
+		return
+	}
+	if err := ConfigValue(r.config[name], dst); err != nil {
+		r.err = fmt.Errorf("option %s: %w", name, err)
+	}
 }

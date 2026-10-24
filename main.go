@@ -53,10 +53,6 @@ func fatal(v ...interface{}) {
 	go func() { shutdown <- errors.New(fmt.Sprint(v...)) }()
 }
 
-func fatalf(format string, a ...interface{}) {
-	go func() { shutdown <- fmt.Errorf(format, a...) }()
-}
-
 func verbosef(format string, a ...interface{}) {
 	if !*verbose {
 		return

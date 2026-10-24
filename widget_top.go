@@ -24,21 +24,25 @@ type TopWidget struct {
 }
 
 // NewTopWidget returns a new TopWidget.
-func NewTopWidget(bw *BaseWidget, opts WidgetConfig) *TopWidget {
+func NewTopWidget(bw *BaseWidget, opts WidgetConfig) (*TopWidget, error) {
 	bw.setInterval(time.Duration(opts.Interval)*time.Millisecond, time.Second/2)
 
 	var mode string
-	_ = ConfigValue(opts.Config["mode"], &mode)
 	var color, fillColor color.Color
-	_ = ConfigValue(opts.Config["color"], &color)
-	_ = ConfigValue(opts.Config["fillColor"], &fillColor)
+	r := configReader{config: opts.Config}
+	r.read("mode", &mode)
+	r.read("color", &color)
+	r.read("fillColor", &fillColor)
+	if r.err != nil {
+		return nil, r.err
+	}
 
 	return &TopWidget{
 		BaseWidget: bw,
 		mode:       mode,
 		color:      color,
 		fillColor:  fillColor,
-	}
+	}, nil
 }
 
 // Update renders the widget.

@@ -19,11 +19,13 @@ type RecentWindowWidget struct {
 // NewRecentWindowWidget returns a new RecentWindowWidget.
 func NewRecentWindowWidget(bw *BaseWidget, opts WidgetConfig) (*RecentWindowWidget, error) {
 	var window int64
-	if err := ConfigValue(opts.Config["window"], &window); err != nil {
-		return nil, err
-	}
 	var showTitle bool
-	_ = ConfigValue(opts.Config["showTitle"], &showTitle)
+	r := configReader{config: opts.Config}
+	r.read("window", &window)
+	r.read("showTitle", &showTitle)
+	if r.err != nil {
+		return nil, r.err
+	}
 
 	widget, err := NewButtonWidget(bw, opts)
 	if err != nil {

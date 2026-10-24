@@ -18,15 +18,19 @@ type TimeWidget struct {
 }
 
 // NewTimeWidget returns a new TimeWidget.
-func NewTimeWidget(bw *BaseWidget, opts WidgetConfig) *TimeWidget {
+func NewTimeWidget(bw *BaseWidget, opts WidgetConfig) (*TimeWidget, error) {
 	bw.setInterval(time.Duration(opts.Interval)*time.Millisecond, time.Second/2)
 
 	var formats, fonts, frameReps []string
-	_ = ConfigValue(opts.Config["format"], &formats)
-	_ = ConfigValue(opts.Config["font"], &fonts)
-	_ = ConfigValue(opts.Config["layout"], &frameReps)
 	var colors []color.Color
-	_ = ConfigValue(opts.Config["color"], &colors)
+	r := configReader{config: opts.Config}
+	r.read("format", &formats)
+	r.read("font", &fonts)
+	r.read("layout", &frameReps)
+	r.read("color", &colors)
+	if r.err != nil {
+		return nil, r.err
+	}
 
 	layout := NewLayout(bw.canvas())
 	frames := layout.FormatLayout(frameReps, len(formats))
@@ -46,7 +50,7 @@ func NewTimeWidget(bw *BaseWidget, opts WidgetConfig) *TimeWidget {
 		fonts:      fonts,
 		colors:     colors,
 		frames:     frames,
-	}
+	}, nil
 }
 
 // Update renders the widget.

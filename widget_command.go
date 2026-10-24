@@ -1,10 +1,14 @@
 package main
 
 import (
+	"fmt"
 	"image"
 	"image/color"
+	"os"
 	"os/exec"
+	"slices"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -12,22 +16,26 @@ import (
 type CommandWidget struct {
 	*BaseWidget
 
-	commands []string
+	commands *commandRunner
 	fonts    []string
 	frames   []image.Rectangle
 	colors   []color.Color
 }
 
 // NewCommandWidget returns a new CommandWidget.
-func NewCommandWidget(bw *BaseWidget, opts WidgetConfig) *CommandWidget {
+func NewCommandWidget(bw *BaseWidget, opts WidgetConfig) (*CommandWidget, error) {
 	bw.setInterval(time.Duration(opts.Interval)*time.Millisecond, time.Second)
 
 	var commands, fonts, frameReps []string
-	_ = ConfigValue(opts.Config["command"], &commands)
-	_ = ConfigValue(opts.Config["font"], &fonts)
-	_ = ConfigValue(opts.Config["layout"], &frameReps)
 	var colors []color.Color
-	_ = ConfigValue(opts.Config["color"], &colors)
+	r := configReader{config: opts.Config}
+	r.read("command", &commands)
+	r.read("font", &fonts)
+	r.read("layout", &frameReps)
+	r.read("color", &colors)
+	if r.err != nil {
+		return nil, r.err
+	}
 
 	layout := NewLayout(bw.canvas())
 	frames := layout.FormatLayout(frameReps, len(commands))
@@ -43,21 +51,26 @@ func NewCommandWidget(bw *BaseWidget, opts WidgetConfig) *CommandWidget {
 
 	return &CommandWidget{
 		BaseWidget: bw,
-		commands:   commands,
+		commands:   newCommandRunner(fmt.Sprintf("key %d", bw.key), commands),
 		fonts:      fonts,
 		frames:     frames,
 		colors:     colors,
-	}
+	}, nil
+}
+
+// RequiresUpdate returns true when the widget wants to be repainted.
+func (w *CommandWidget) RequiresUpdate() bool {
+	return w.commands.Fresh() || w.BaseWidget.RequiresUpdate()
 }
 
 // Update renders the widget.
 func (w *CommandWidget) Update() error {
-	img := image.NewRGBA(w.canvas())
+	outputs := w.commands.Outputs()
 
-	for i := 0; i < len(w.commands); i++ {
-		str, err := runCommand(w.commands[i])
-		if err != nil {
-			return err
+	img := image.NewRGBA(w.canvas())
+	for i, str := range outputs {
+		if str == "" {
+			continue
 		}
 		font := fontByName(w.fonts[i])
 
@@ -71,6 +84,85 @@ func (w *CommandWidget) Update() error {
 			image.Pt(-1, -1))
 	}
 	return w.render(w.dev, img)
+}
+
+// commandRunner runs commands in the background, so slow commands don't
+// block the event loop, and keeps their latest output.
+type commandRunner struct {
+	name     string
+	commands []string
+
+	mu      sync.Mutex
+	outputs []string
+	errs    []string
+	running bool
+	fresh   bool
+}
+
+// newCommandRunner returns a commandRunner for the given commands. The name
+// is used in error messages.
+func newCommandRunner(name string, commands []string) *commandRunner {
+	return &commandRunner{
+		name:     name,
+		commands: commands,
+		outputs:  make([]string, len(commands)),
+		errs:     make([]string, len(commands)),
+	}
+}
+
+// Fresh returns true when new output is available.
+func (r *commandRunner) Fresh() bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	return r.fresh
+}
+
+// Outputs returns the latest output of each command, empty until a command
+// first succeeds. Unless it's called because new output is available, it
+// also runs the commands again in the background, if they aren't running
+// already.
+func (r *commandRunner) Outputs() []string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if !r.fresh && !r.running {
+		r.running = true
+		go r.run()
+	}
+	r.fresh = false
+	return slices.Clone(r.outputs)
+}
+
+// run runs the commands. A failing command keeps its previous output, and
+// its error is only logged when it changes, not on every run.
+func (r *commandRunner) run() {
+	outputs := make([]string, len(r.commands))
+	errs := make([]string, len(r.commands))
+	for i, command := range r.commands {
+		out, err := runCommand(command)
+		if err != nil {
+			errs[i] = err.Error()
+			continue
+		}
+		outputs[i] = out
+	}
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	for i := range r.commands {
+		if errs[i] != "" {
+			if errs[i] != r.errs[i] {
+				fmt.Fprintf(os.Stderr, "Command %q of %s failed: %s\n", r.commands[i], r.name, errs[i])
+			}
+		} else {
+			r.outputs[i] = outputs[i]
+		}
+	}
+	r.errs = errs
+	r.running = false
+	r.fresh = true
 }
 
 func runCommand(command string) (string, error) {

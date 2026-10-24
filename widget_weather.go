@@ -148,9 +148,13 @@ func (w *WeatherData) Fetch() {
 // NewWeatherWidget returns a new WeatherWidget.
 func NewWeatherWidget(bw *BaseWidget, opts WidgetConfig) (*WeatherWidget, error) {
 	var location, unit, theme string
-	_ = ConfigValue(opts.Config["location"], &location)
-	_ = ConfigValue(opts.Config["unit"], &unit)
-	_ = ConfigValue(opts.Config["theme"], &theme)
+	r := configReader{config: opts.Config}
+	r.read("location", &location)
+	r.read("unit", &unit)
+	r.read("theme", &theme)
+	if r.err != nil {
+		return nil, r.err
+	}
 
 	widget, err := NewButtonWidget(bw, opts)
 	if err != nil {

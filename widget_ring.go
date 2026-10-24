@@ -16,14 +16,17 @@ type RingWidget struct {
 
 	ringColor color.Color
 	knobColor color.Color
-	value     string
+	value     *commandRunner
+	badValue  string
 }
 
 // NewRingWidget returns a new RingWidget.
 func NewRingWidget(bw *BaseWidget, dc DialConfig) (*RingWidget, error) {
 	w := &RingWidget{
 		BaseWidget: bw,
-		value:      dc.RingValue,
+	}
+	if dc.RingValue != "" {
+		w.value = newCommandRunner(fmt.Sprintf("dial %d", dc.Index), []string{dc.RingValue})
 	}
 
 	var err error
@@ -41,10 +44,15 @@ func NewRingWidget(bw *BaseWidget, dc DialConfig) (*RingWidget, error) {
 		verbosef("Dial %d has no display, ignoring its %s widget", dc.Index, dc.Widget.ID)
 	}
 
-	if w.value != "" {
+	if w.value != nil {
 		bw.setInterval(time.Duration(dc.RingInterval)*time.Millisecond, time.Second)
 	}
 	return w, nil
+}
+
+// RequiresUpdate returns true when the LEDs need to be set.
+func (w *RingWidget) RequiresUpdate() bool {
+	return (w.value != nil && w.value.Fresh()) || w.BaseWidget.RequiresUpdate()
 }
 
 // Update sets the LEDs of the dial.
@@ -54,7 +62,7 @@ func (w *RingWidget) Update() error {
 	if err := w.dev.SetDialKnobColor(w.key, ledColor(w.knobColor)); err != nil {
 		return err
 	}
-	if w.value == "" {
+	if w.value == nil {
 		return w.dev.SetDialRingColor(w.key, ledColor(w.ringColor))
 	}
 
@@ -65,18 +73,21 @@ func (w *RingWidget) Update() error {
 	return w.dev.SetDialRingPercentage(w.key, c, w.percent())
 }
 
-// percent runs the ring value command and returns its output as a
-// percentage, 0 if it fails.
+// percent returns the latest output of the ring value command as a
+// percentage, 0 until it succeeds or if it's no number. The command runs in
+// the background.
 func (w *RingWidget) percent() uint8 {
-	out, err := runCommand(w.value)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Ring value command of dial %d failed: %s\n", w.key, err)
+	out := strings.TrimSpace(w.value.Outputs()[0])
+	if out == "" {
 		return 0
 	}
 
-	v, err := strconv.ParseFloat(strings.TrimSuffix(strings.TrimSpace(out), "%"), 64)
+	v, err := strconv.ParseFloat(strings.TrimSuffix(out, "%"), 64)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Ring value of dial %d is no number: %q\n", w.key, out)
+		if out != w.badValue {
+			fmt.Fprintf(os.Stderr, "Ring value of dial %d is no number: %q\n", w.key, out)
+			w.badValue = out
+		}
 		return 0
 	}
 	return uint8(min(max(v, 0), 100))

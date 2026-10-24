@@ -5,6 +5,7 @@ import (
 	"image"
 	"image/color"
 	_ "image/png" // decode PNG icons
+	"maps"
 	"math"
 	"os"
 	"path/filepath"
@@ -31,6 +32,9 @@ type Widget interface {
 	Action() *ActionConfig
 	ActionHold() *ActionConfig
 	TriggerAction(hold bool)
+	// Failed marks a failed update, so it's retried after the widget's
+	// interval and not right away.
+	Failed()
 }
 
 // BaseWidget provides common functionality required by all widgets.
@@ -127,6 +131,11 @@ func (w *BaseWidget) RequiresUpdate() bool {
 	return true
 }
 
+// Failed marks a failed update, so it's retried after the widget's interval.
+func (w *BaseWidget) Failed() {
+	w.lastUpdate = time.Now()
+}
+
 // Update renders the widget.
 func (w *BaseWidget) Update() error {
 	return w.render(w.dev, nil)
@@ -167,7 +176,12 @@ func NewWidget(dev *streamdeck.Device, base string, kc KeyConfig, bg image.Image
 		}
 		return bw, nil
 	}
-	return newWidget(bw, kc.Widget)
+
+	widget, err := newWidget(bw, kc.Widget)
+	if err != nil {
+		return nil, fmt.Errorf("key %d: %w", kc.Index, err)
+	}
+	return widget, nil
 }
 
 // NewDialWidget initializes the widget shown on the touch screen segment
@@ -190,7 +204,12 @@ func NewDialWidget(dev *streamdeck.Device, base string, dc DialConfig) (Widget, 
 		verbosef("Dial %d has no display, ignoring its %s widget", dc.Index, dc.Widget.ID)
 		return bw, nil
 	}
-	return newWidget(bw, dc.Widget)
+
+	widget, err := newWidget(bw, dc.Widget)
+	if err != nil {
+		return nil, fmt.Errorf("dial %d: %w", dc.Index, err)
+	}
+	return widget, nil
 }
 
 // NewInfoWidget initializes the widget shown on the info screen (Stream Deck
@@ -198,7 +217,12 @@ func NewDialWidget(dev *streamdeck.Device, base string, dc DialConfig) (Widget, 
 func NewInfoWidget(dev *streamdeck.Device, base string, ic InfoConfig) (Widget, error) {
 	bw := NewBaseWidget(dev, base, 0, nil, nil, nil)
 	bw.display = displayInfo
-	return newWidget(bw, ic.Widget)
+
+	widget, err := newWidget(bw, ic.Widget)
+	if err != nil {
+		return nil, fmt.Errorf("info screen: %w", err)
+	}
+	return widget, nil
 }
 
 // parseColor parses a color in hex notation, like #ff8000.
@@ -211,40 +235,58 @@ func parseColor(s string) (color.Color, error) {
 }
 
 func newWidget(bw *BaseWidget, wc WidgetConfig) (Widget, error) {
+	var w Widget
+	var err error
 	switch wc.ID {
 	case "button":
-		return NewButtonWidget(bw, wc)
+		w, err = NewButtonWidget(bw, wc)
 
 	case "clock":
-		wc.Config = make(map[string]interface{})
-		wc.Config["format"] = "%H;%i;%s"
-		wc.Config["font"] = "bold;regular;thin"
-		return NewTimeWidget(bw, wc), nil
+		w, err = NewTimeWidget(bw, withDefaults(wc, "%H;%i;%s", "bold;regular;thin"))
 
 	case "date":
-		wc.Config = make(map[string]interface{})
-		wc.Config["format"] = "%l;%d;%M"
-		wc.Config["font"] = "regular;bold;regular"
-		return NewTimeWidget(bw, wc), nil
+		w, err = NewTimeWidget(bw, withDefaults(wc, "%l;%d;%M", "regular;bold;regular"))
 
 	case "time":
-		return NewTimeWidget(bw, wc), nil
+		w, err = NewTimeWidget(bw, wc)
 
 	case "recentWindow":
-		return NewRecentWindowWidget(bw, wc)
+		w, err = NewRecentWindowWidget(bw, wc)
 
 	case "top":
-		return NewTopWidget(bw, wc), nil
+		w, err = NewTopWidget(bw, wc)
 
 	case "command":
-		return NewCommandWidget(bw, wc), nil
+		w, err = NewCommandWidget(bw, wc)
 
 	case "weather":
-		return NewWeatherWidget(bw, wc)
-	}
+		w, err = NewWeatherWidget(bw, wc)
 
-	// unknown widget ID
-	return nil, fmt.Errorf("unknown widget with ID %s", wc.ID)
+	default:
+		return nil, fmt.Errorf("unknown widget with ID %s", wc.ID)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("%s widget: %w", wc.ID, err)
+	}
+	return w, nil
+}
+
+// withDefaults returns the config of a clock or date widget, using the given
+// format and fonts unless they are configured. Other options, like colors,
+// are kept.
+func withDefaults(wc WidgetConfig, format, font string) WidgetConfig {
+	config := maps.Clone(wc.Config)
+	if config == nil {
+		config = map[string]interface{}{}
+	}
+	if _, ok := config["format"]; !ok {
+		config["format"] = format
+	}
+	if _, ok := config["font"]; !ok {
+		config["font"] = font
+	}
+	wc.Config = config
+	return wc
 }
 
 // renders the widget including its background image.

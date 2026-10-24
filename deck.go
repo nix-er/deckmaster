@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"image"
 	"image/draw"
@@ -197,14 +198,19 @@ func emulateKeyPress(keys string) {
 		return
 	}
 
-	kk := strings.Split(keys, "-")
-	for i, k := range kk {
+	// check all keys first, don't press part of a combination
+	var kk []int
+	for _, k := range strings.Split(keys, "-") {
 		k = formatKeycodes(strings.TrimSpace(k))
 		kc, err := strconv.Atoi(k)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s is not a valid keycode: %s\n", k, err)
+			fmt.Fprintf(os.Stderr, "Not pressing %q: %s is not a valid keycode\n", keys, k)
+			return
 		}
+		kk = append(kk, kc)
+	}
 
+	for i, kc := range kk {
 		if i+1 < len(kk) {
 			_ = keyboard.KeyDown(kc)
 			defer keyboard.KeyUp(kc) //nolint:errcheck
@@ -284,6 +290,9 @@ func parseDBusValue(value string) ([]interface{}, error) {
 	return []interface{}{arg}, nil
 }
 
+// dbusTimeout limits how long a dbus action waits for a reply.
+const dbusTimeout = 10 * time.Second
+
 // executes a dbus method.
 func executeDBusMethod(object, path, method, value string) {
 	args, err := parseDBusValue(value)
@@ -292,7 +301,10 @@ func executeDBusMethod(object, path, method, value string) {
 		return
 	}
 
-	call := dbusConn.Object(object, dbus.ObjectPath(path)).Call(method, 0, args...)
+	ctx, cancel := context.WithTimeout(context.Background(), dbusTimeout)
+	defer cancel()
+
+	call := dbusConn.Object(object, dbus.ObjectPath(path)).CallWithContext(ctx, method, 0, args...)
 	if call.Err != nil {
 		fmt.Fprintf(os.Stderr, "dbus call failed: %s\n", call.Err)
 	}
@@ -499,8 +511,7 @@ func (d *Deck) runAction(dev *streamdeck.Device, a *ActionConfig) {
 			return
 		}
 		if err := dev.Clear(); err != nil {
-			fatal(err)
-			return
+			fmt.Fprintln(os.Stderr, "Can't clear the device:", err)
 		}
 
 		deck = d
@@ -513,7 +524,7 @@ func (d *Deck) runAction(dev *streamdeck.Device, a *ActionConfig) {
 		emulateClipboard(a.Paste)
 	}
 	if a.DBus.Method != "" {
-		executeDBusMethod(a.DBus.Object, a.DBus.Path, a.DBus.Method, a.DBus.Value)
+		go executeDBusMethod(a.DBus.Object, a.DBus.Path, a.DBus.Method, a.DBus.Value)
 	}
 	if a.Exec != "" {
 		go executeCommand(a.Exec)
@@ -522,7 +533,7 @@ func (d *Deck) runAction(dev *streamdeck.Device, a *ActionConfig) {
 		switch {
 		case a.Device == "sleep":
 			if err := dev.Sleep(); err != nil {
-				fatalf("error: %v\n", err)
+				fmt.Fprintln(os.Stderr, "Can't put the device to sleep:", err)
 			}
 
 		case strings.HasPrefix(a.Device, "brightness"):
@@ -546,9 +557,11 @@ func (d *Deck) updateWidgets() {
 				continue
 			}
 
-			// fmt.Println("Repaint", w.Key())
 			if err := w.Update(); err != nil {
-				fatalf("error: %v", err)
+				// e.g. the device was just unplugged; keep running, and
+				// retry after the widget's interval
+				fmt.Fprintf(os.Stderr, "Can't update widget %d: %s\n", w.Key(), err)
+				w.Failed()
 			}
 		}
 	}
@@ -596,7 +609,8 @@ func (d *Deck) adjustBrightness(dev *streamdeck.Device, value string) {
 		v = 100
 	}
 	if err := dev.SetBrightness(uint8(v)); err != nil {
-		fatalf("error: %v\n", err)
+		fmt.Fprintln(os.Stderr, "Can't set the brightness:", err)
+		return
 	}
 
 	*brightness = uint(v)

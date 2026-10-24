@@ -22,14 +22,18 @@ func NewButtonWidget(bw *BaseWidget, opts WidgetConfig) (*ButtonWidget, error) {
 	bw.setInterval(time.Duration(opts.Interval)*time.Millisecond, 0)
 
 	var icon, label string
-	_ = ConfigValue(opts.Config["icon"], &icon)
-	_ = ConfigValue(opts.Config["label"], &label)
 	var fontsize float64
-	_ = ConfigValue(opts.Config["fontsize"], &fontsize)
 	var color color.Color
-	_ = ConfigValue(opts.Config["color"], &color)
 	var flatten bool
-	_ = ConfigValue(opts.Config["flatten"], &flatten)
+	r := configReader{config: opts.Config}
+	r.read("icon", &icon)
+	r.read("label", &label)
+	r.read("fontsize", &fontsize)
+	r.read("color", &color)
+	r.read("flatten", &flatten)
+	if r.err != nil {
+		return nil, r.err
+	}
 
 	if color == nil {
 		color = DefaultColor

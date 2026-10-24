@@ -87,7 +87,7 @@ func TestLoadDeckStudio(t *testing.T) {
 	if !ok {
 		t.Fatalf("dial widget is a %T, want *RingWidget", d.DialWidgets[0])
 	}
-	if ring.ringColor == nil || ring.knobColor == nil || ring.value == "" || ring.interval == 0 {
+	if ring.ringColor == nil || ring.knobColor == nil || ring.value == nil || ring.interval == 0 {
 		t.Errorf("ring widget = %+v, want colors, value command and interval", ring)
 	}
 	if ring.display != displayNone {
