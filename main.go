@@ -111,11 +111,12 @@ func eventLoop(dev *streamdeck.Device, tch chan interface{}) error {
 
 		case e, ok := <-ich:
 			if !ok {
-				if err = dev.Open(); err != nil {
+				if ich, err = reconnect(dev, sigs); err != nil {
 					return err
 				}
-				if ich, err = dev.ReadInput(); err != nil {
-					return err
+				if ich == nil {
+					fmt.Println("Shutting down...")
+					return nil
 				}
 				continue
 			}
@@ -168,6 +169,43 @@ func eventLoop(dev *streamdeck.Device, tch chan interface{}) error {
 			return nil
 		}
 	}
+}
+
+// reconnect waits for the device to come back after the connection to it was
+// lost, e.g. because it was unplugged, and redraws the current deck. It
+// returns a nil channel if deckmaster was asked to quit meanwhile.
+func reconnect(dev *streamdeck.Device, sigs <-chan os.Signal) (chan streamdeck.Event, error) {
+	fmt.Fprintf(os.Stderr, "Lost connection to device %s, waiting for it to come back...\n", dev.Serial)
+	for {
+		err := dev.Reopen()
+		if err == nil {
+			break
+		}
+		verbosef("Can't reopen device: %s", err)
+
+		select {
+		case <-sigs:
+			return nil, nil
+		case <-time.After(time.Second):
+		}
+	}
+	fmt.Fprintf(os.Stderr, "Device %s is back\n", dev.Serial)
+
+	if err := dev.Reset(); err != nil {
+		return nil, err
+	}
+	if err := dev.SetBrightness(uint8(*brightness)); err != nil { //nolint:gosec // at most 100
+		return nil, err
+	}
+
+	nd, err := LoadDeck(dev, ".", deck.File)
+	if err != nil {
+		return nil, fmt.Errorf("can't load deck: %w", err)
+	}
+	deck = nd
+	deck.updateWidgets()
+
+	return dev.ReadInput()
 }
 
 // minSwipeDistance is the minimum horizontal distance in pixels for a swipe to
