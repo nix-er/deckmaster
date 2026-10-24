@@ -20,7 +20,7 @@
           src = nixpkgs.lib.cleanSource ./.;
 
           # Update when go.mod/go.sum change: set to nixpkgs.lib.fakeHash, build, copy the hash.
-          vendorHash = "sha256-A7NnA3bLS5GXu7y8kP8Qa6iN4hWcJN6ZLHAd79MjimI=";
+          vendorHash = "sha256-9CSTedHK3MhIj/zK4afLM3Qj7jpFK8OljsQXBoNwiZ0=";
 
           ldflags = [
             "-s"

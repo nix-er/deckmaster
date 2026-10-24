@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"sync"
 	"syscall"
 	"time"
 
@@ -176,10 +175,11 @@ func eventLoop(dev *streamdeck.Device, tch chan interface{}) error {
 const minSwipeDistance = 100
 
 // pressTracker turns press/release events of keys or dials into short and long
-// press actions.
+// press actions. It must only be used from the event loop goroutine.
 type pressTracker struct {
 	name       string
-	states     sync.Map
+	pressed    map[uint8]bool
+	presses    map[uint8]uint64
 	timestamps map[uint8]time.Time
 	holds      chan<- func()
 	trigger    func(index uint8, hold bool)
@@ -190,6 +190,8 @@ type pressTracker struct {
 func newPressTracker(name string, holds chan<- func(), trigger func(index uint8, hold bool)) *pressTracker {
 	return &pressTracker{
 		name:       name,
+		pressed:    make(map[uint8]bool),
+		presses:    make(map[uint8]uint64),
 		timestamps: make(map[uint8]time.Time),
 		holds:      holds,
 		trigger:    trigger,
@@ -198,28 +200,29 @@ func newPressTracker(name string, holds chan<- func(), trigger func(index uint8,
 
 // handle processes a press or release of the key or dial with the given index.
 func (p *pressTracker) handle(index uint8, pressed bool) {
-	var state bool
-	if s, ok := p.states.Load(index); ok {
-		state = s.(bool)
-	}
-	p.states.Store(index, pressed)
+	was := p.pressed[index]
+	p.pressed[index] = pressed
 
-	if state && !pressed {
+	if was && !pressed {
 		// was released
 		if time.Since(p.timestamps[index]) < longPressDuration {
 			verbosef("Triggering short action for %s %d", p.name, index)
 			p.trigger(index, false)
 		}
 	}
-	if !state && pressed {
-		// was pressed
+	if pressed {
+		// was pressed; don't rely on the previous state here, the release may
+		// have been missed (e.g. it woke the device from sleep)
+		p.presses[index]++
+		press := p.presses[index]
+
 		go func() {
-			// launch timer to observe the state
 			time.Sleep(longPressDuration)
 
-			if s, ok := p.states.Load(index); ok && s.(bool) {
-				// still pressed
-				p.holds <- func() {
+			// checked on the event loop: it's only a long press if this press
+			// is still going on, not just any later one
+			p.holds <- func() {
+				if p.pressed[index] && p.presses[index] == press {
 					verbosef("Triggering long action for %s %d", p.name, index)
 					p.trigger(index, true)
 				}
