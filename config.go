@@ -46,13 +46,17 @@ type KeyConfig struct {
 	Widget     WidgetConfig  `toml:"widget"`
 	Action     *ActionConfig `toml:"action,omitempty"`
 	ActionHold *ActionConfig `toml:"action_hold,omitempty"`
+
+	// Color is the LED color of a touch key (Stream Deck Neo), like
+	// "#ff8000".
+	Color string `toml:"color,omitempty"`
 }
 
 // Keys is a slice of keys.
 type Keys []KeyConfig
 
-// DialConfig holds the configuration for a dial (Stream Deck+) and the touch
-// screen segment above it.
+// DialConfig holds the configuration for a dial (Stream Deck+, + XL and
+// Studio) and the touch screen segment above it.
 type DialConfig struct {
 	Index           uint8         `toml:"index"`
 	Widget          WidgetConfig  `toml:"widget,omitempty"`
@@ -62,6 +66,16 @@ type DialConfig struct {
 	ActionRight     *ActionConfig `toml:"action_right,omitempty"`
 	ActionTouch     *ActionConfig `toml:"action_touch,omitempty"`
 	ActionTouchHold *ActionConfig `toml:"action_touch_hold,omitempty"`
+
+	// RingColor and KnobColor are the colors of the dial's LED ring and
+	// knob LED (Stream Deck Studio), like "#ff8000".
+	RingColor string `toml:"ring_color,omitempty"`
+	KnobColor string `toml:"knob_color,omitempty"`
+	// RingValue is a command printing a value from 0 to 100, shown as the
+	// lit part of the LED ring. It is run every RingInterval milliseconds
+	// and after the dial is used.
+	RingValue    string `toml:"ring_value,omitempty"`
+	RingInterval uint   `toml:"ring_interval,omitempty"`
 }
 
 // Dials is a slice of dials.
@@ -73,6 +87,11 @@ type SwipeConfig struct {
 	Right *ActionConfig `toml:"right,omitempty"`
 }
 
+// InfoConfig holds the configuration for the info screen (Stream Deck Neo).
+type InfoConfig struct {
+	Widget WidgetConfig `toml:"widget,omitempty"`
+}
+
 // DeckConfig is the central configuration struct.
 type DeckConfig struct {
 	Background string      `toml:"background,omitempty"`
@@ -80,9 +99,11 @@ type DeckConfig struct {
 	Keys       Keys        `toml:"keys"`
 	Dials      Dials       `toml:"dials,omitempty"`
 	Swipe      SwipeConfig `toml:"swipe,omitempty"`
+	Info       InfoConfig  `toml:"info,omitempty"`
 }
 
-// MergeDeckConfig merges key and dial configuration from multiple configs.
+// MergeDeckConfig merges key, dial and info screen configuration from multiple
+// configs.
 func MergeDeckConfig(base, parent *DeckConfig) DeckConfig {
 	merged := make(map[byte]KeyConfig)
 	for _, config := range parent.Keys {
@@ -123,12 +144,18 @@ func MergeDeckConfig(base, parent *DeckConfig) DeckConfig {
 		swipe.Right = parent.Swipe.Right
 	}
 
+	info := base.Info
+	if info.Widget.ID == "" {
+		info = parent.Info
+	}
+
 	return DeckConfig{
 		Background: background,
 		Parent:     base.Parent,
 		Keys:       keys,
 		Dials:      dials,
 		Swipe:      swipe,
+		Info:       info,
 	}
 }
 

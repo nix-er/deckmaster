@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"time"
 
+	colorful "github.com/lucasb-eyer/go-colorful"
 	"github.com/nix-er/streamdeck"
 	"golang.org/x/image/draw"
 	"golang.org/x/image/font"
@@ -43,31 +44,53 @@ type BaseWidget struct {
 	lastUpdate time.Time
 	interval   time.Duration
 
-	// segment is true for widgets shown on a touch screen segment (above
-	// the dial with the same index) instead of a key.
-	segment bool
+	// display is where the widget is shown.
+	display display
+
+	// led is the LED color of a touch key without a display (Stream Deck
+	// Neo), nil to turn it off.
+	led color.Color
 }
 
-// canvas returns the area a widget can render on: the key, or the whole touch
-// screen segment.
+// display is a display a widget can be shown on.
+type display int
+
+const (
+	// displayKey is a key's display.
+	displayKey display = iota
+	// displaySegment is the touch screen segment above the dial with the
+	// widget's index.
+	displaySegment
+	// displayInfo is the info screen (Stream Deck Neo).
+	displayInfo
+	// displayNone is used for keys and dials without a display (Stream Deck
+	// Pedal and Studio, and the Neo's touch keys).
+	displayNone
+)
+
+// canvas returns the area a widget can render on: the key, the whole touch
+// screen segment or the info screen.
 func (w *BaseWidget) canvas() image.Rectangle {
-	if w.segment {
+	switch w.display {
+	case displaySegment:
 		return image.Rect(0, 0, int(w.dev.ScreenSegmentWidth()), int(w.dev.ScreenHeight))
+	case displayInfo:
+		return image.Rect(0, 0, int(w.dev.InfoScreenWidth), int(w.dev.InfoScreenHeight))
+	case displayNone:
+		return image.Rectangle{}
 	}
-	return image.Rect(0, 0, int(w.dev.Pixels), int(w.dev.Pixels))
+	return image.Rect(0, 0, int(w.dev.KeyWidth), int(w.dev.KeyHeight))
 }
 
-// pixels returns the size of a square image filling the height of the canvas.
+// pixels returns the size of the largest square image fitting the canvas.
 func (w *BaseWidget) pixels() uint {
-	if w.segment {
-		return w.dev.ScreenHeight
-	}
-	return w.dev.Pixels
+	c := w.canvas()
+	return uint(min(c.Dx(), c.Dy())) //nolint:gosec // canvas sizes are positive
 }
 
 // dpi returns the DPI of the display a widget renders on.
 func (w *BaseWidget) dpi() uint {
-	if w.segment {
+	if w.display == displaySegment {
 		return w.dev.ScreenDPI
 	}
 	return w.dev.DPI
@@ -109,8 +132,13 @@ func (w *BaseWidget) Update() error {
 	return w.render(w.dev, nil)
 }
 
-// NewBaseWidget returns a new BaseWidget.
+// NewBaseWidget returns a new BaseWidget for a key.
 func NewBaseWidget(dev *streamdeck.Device, base string, index uint8, action, actionHold *ActionConfig, bg image.Image) *BaseWidget {
+	d := displayKey
+	if index >= dev.Keys || dev.KeyWidth == 0 {
+		d = displayNone
+	}
+
 	return &BaseWidget{
 		base:       base,
 		key:        index,
@@ -118,24 +146,68 @@ func NewBaseWidget(dev *streamdeck.Device, base string, index uint8, action, act
 		actionHold: actionHold,
 		dev:        dev,
 		background: bg,
+		display:    d,
 	}
 }
 
 // NewWidget initializes a widget.
 func NewWidget(dev *streamdeck.Device, base string, kc KeyConfig, bg image.Image) (Widget, error) {
 	bw := NewBaseWidget(dev, base, kc.Index, kc.Action, kc.ActionHold, bg)
+	if kc.Color != "" {
+		led, err := parseColor(kc.Color)
+		if err != nil {
+			return nil, fmt.Errorf("key %d: %w", kc.Index, err)
+		}
+		bw.led = led
+	}
+
+	if bw.display == displayNone {
+		if kc.Widget.ID != "" {
+			verbosef("Key %d has no display, ignoring its %s widget", kc.Index, kc.Widget.ID)
+		}
+		return bw, nil
+	}
 	return newWidget(bw, kc.Widget)
 }
 
 // NewDialWidget initializes the widget shown on the touch screen segment
-// above a dial. Dials don't need a widget, the segment then stays blank.
+// above a dial. Dials don't need a widget, the segment then stays blank. On
+// devices with LED rings around the dials, it returns a RingWidget instead.
 func NewDialWidget(dev *streamdeck.Device, base string, dc DialConfig) (Widget, error) {
 	bw := NewBaseWidget(dev, base, dc.Index, dc.Action, dc.ActionHold, nil)
-	bw.segment = true
+	bw.display = displaySegment
+	if dev.ScreenSegments == 0 {
+		bw.display = displayNone
+	}
+
+	if dev.DialRings {
+		return NewRingWidget(bw, dc)
+	}
 	if dc.Widget.ID == "" {
 		return bw, nil
 	}
+	if bw.display == displayNone {
+		verbosef("Dial %d has no display, ignoring its %s widget", dc.Index, dc.Widget.ID)
+		return bw, nil
+	}
 	return newWidget(bw, dc.Widget)
+}
+
+// NewInfoWidget initializes the widget shown on the info screen (Stream Deck
+// Neo).
+func NewInfoWidget(dev *streamdeck.Device, base string, ic InfoConfig) (Widget, error) {
+	bw := NewBaseWidget(dev, base, 0, nil, nil, nil)
+	bw.display = displayInfo
+	return newWidget(bw, ic.Widget)
+}
+
+// parseColor parses a color in hex notation, like #ff8000.
+func parseColor(s string) (color.Color, error) {
+	c, err := colorful.Hex(s)
+	if err != nil {
+		return nil, fmt.Errorf("invalid color %q: %w", s, err)
+	}
+	return c, nil
 }
 
 func newWidget(bw *BaseWidget, wc WidgetConfig) (Widget, error) {
@@ -190,10 +262,26 @@ func (w *BaseWidget) render(dev *streamdeck.Device, fg image.Image) error {
 		draw.Draw(img, fg.Bounds().Add(offset), fg, fg.Bounds().Min, draw.Over)
 	}
 
-	if w.segment {
+	switch w.display {
+	case displaySegment:
 		return dev.SetScreenSegmentImage(w.key, img)
+	case displayInfo:
+		return dev.SetInfoScreenImage(img)
+	case displayNone:
+		if w.key >= dev.Keys && w.key < dev.Keys+dev.TouchKeys {
+			return dev.SetKeyColor(w.key, ledColor(w.led))
+		}
+		return nil
 	}
 	return dev.SetImage(w.key, img)
+}
+
+// ledColor returns the color to set an LED to, black (off) for nil.
+func ledColor(c color.Color) color.Color {
+	if c == nil {
+		return color.Black
+	}
+	return c
 }
 
 // change the interval a widget gets rendered in.

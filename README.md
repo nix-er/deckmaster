@@ -15,7 +15,11 @@ An application to control your Elgato Stream Deck on Linux
 - Background images
 - Brightness control
 - Supports different actions for short & long presses
-- Stream Deck+ dials and touch screen
+- Supports all Stream Deck models, including:
+    - Stream Deck+ and + XL dials and touch screen
+    - Stream Deck Studio dials with LED rings
+    - Stream Deck Neo touch keys and info screen
+    - Stream Deck Pedal
 - Comes with a collection of widgets:
     - Buttons
     - Time (with formatting)
@@ -28,6 +32,22 @@ An application to control your Elgato Stream Deck on Linux
     - Emulate a key-press
     - Paste to clipboard
     - Trigger a dbus call
+
+## Supported Devices
+
+| Device | Keys | Other controls |
+|---|---|---|
+| Stream Deck Original, MK.2, Module 15 Keys (all revisions) | 5×3 | |
+| Stream Deck Mini, Module 6 Keys (all revisions) | 3×2 | |
+| Stream Deck XL, Module 32 Keys (all revisions) | 8×4 | |
+| Stream Deck+ | 4×2 | 4 dials, touch screen |
+| Stream Deck + XL* | 9×4 | 6 dials, touch screen |
+| Stream Deck Neo* | 4×2 | 2 touch keys with LEDs, info screen |
+| Stream Deck Studio* | 16×2 (144×112 pixels) | 2 dials with LED rings |
+| Stream Deck Pedal* | 3 pedals | |
+
+\* Support for these models follows the reference implementations of their
+protocol, but hasn't been tested on hardware yet. Please report how it works!
 
 ## Installation
 
@@ -417,12 +437,12 @@ This even works recursively:
 parent = "another.deck"
 ```
 
-Dials and swipe actions are inherited the same way.
+Dials, swipe actions and the info screen widget are inherited the same way.
 
-### Stream Deck+ dials and touch screen
+### Dials and touch screen
 
-The Stream Deck+ has four dials, with a touch screen segment above each of
-them. A dial and its segment are configured together in a `[[dials]]` entry,
+The Stream Deck+ (four dials) and + XL (six dials) have a touch screen segment
+above each dial. A dial and its segment are configured together in a `[[dials]]` entry,
 with `index` 0 being the leftmost dial. All settings are optional:
 
 ```toml
@@ -468,6 +488,57 @@ Swiping across the touch screen can trigger an action, e.g. to switch decks:
 ```
 
 See [decks/plus.deck](decks/plus.deck) for a complete example.
+
+### Stream Deck Studio dial LEDs
+
+The Stream Deck Studio's two dials have no screen, but an LED ring and a knob
+LED. Configure them in the `[[dials]]` entry, next to the dial's actions. The
+ring can show a value from 0 to 100, printed by a command:
+
+```toml
+[[dials]]
+  index = 0
+  ring_color = "#00c060"
+  knob_color = "#ffffff"
+  # optional: light only part of the ring, e.g. to show the volume
+  ring_value = "pamixer --get-volume"
+  ring_interval = 1000 # milliseconds, optional
+```
+
+The value command runs every `ring_interval` milliseconds (every second by
+default), and right after the dial is turned or pressed. LEDs without a color
+are turned off. See [decks/studio.deck](decks/studio.deck) for a complete
+example.
+
+### Stream Deck Neo touch keys and info screen
+
+The Stream Deck Neo's two touch keys have no display, but an LED. They are
+keys 8 and 9, configured like the other keys with a `color` instead of a
+widget:
+
+```toml
+[[keys]]
+  index = 8
+  color = "#ff8000"
+  [keys.action]
+    keycode = "VolumeDown"
+```
+
+Any widget can be shown on the info screen between them (248×58 pixels):
+
+```toml
+[info.widget]
+  id = "time"
+  [info.widget.config]
+    format = "%H:%i"
+```
+
+See [decks/neo.deck](decks/neo.deck) for a complete example.
+
+### Stream Deck Pedal
+
+The pedals are keys 0 to 2 (left to right). As they have no display, only
+their actions are used.
 
 ## More Decks!
 

@@ -306,9 +306,23 @@ func initDevice() (*streamdeck.Device, error) {
 	}
 	verbosef("Found device with serial %s (%d buttons, firmware %s)",
 		dev.Serial, dev.Keys, ver)
+	if dev.KeyWidth == 0 {
+		verbosef("Device keys have no displays")
+	} else {
+		verbosef("Device keys have %dx%d pixel displays", dev.KeyWidth, dev.KeyHeight)
+	}
+	if dev.TouchKeys > 0 {
+		verbosef("Device has %d touch keys (%d to %d)", dev.TouchKeys, dev.Keys, dev.Keys+dev.TouchKeys-1)
+	}
 	if dev.Dials > 0 || dev.ScreenWidth > 0 {
 		verbosef("Device has %d dials and a %dx%d touch screen",
 			dev.Dials, dev.ScreenWidth, dev.ScreenHeight)
+	}
+	if dev.DialRings {
+		verbosef("Device dials have LED rings")
+	}
+	if dev.InfoScreenWidth > 0 {
+		verbosef("Device has a %dx%d info screen", dev.InfoScreenWidth, dev.InfoScreenHeight)
 	}
 
 	if err := dev.Reset(); err != nil {

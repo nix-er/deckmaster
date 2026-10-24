@@ -1,0 +1,54 @@
+# Example deck for the Stream Deck Neo: 8 keys, 2 touch keys (8 and 9) with an
+# RGB LED each, and an info screen.
+
+[[keys]]
+  index = 0
+  [keys.widget]
+    id = "top"
+    [keys.widget.config]
+      mode = "cpu"
+
+[[keys]]
+  index = 1
+  [keys.widget]
+    id = "top"
+    [keys.widget.config]
+      mode = "memory"
+
+[[keys]]
+  index = 4
+  [keys.widget]
+    id = "button"
+    [keys.widget.config]
+      icon = "assets/go-previous.png"
+  [keys.action]
+    keycode = "Previoussong"
+
+[[keys]]
+  index = 5
+  [keys.widget]
+    id = "button"
+    [keys.widget.config]
+      label = "Play"
+  [keys.action]
+    keycode = "Playpause"
+
+# the touch keys have no display, only an LED
+[[keys]]
+  index = 8
+  color = "#0080ff"
+  [keys.action]
+    keycode = "VolumeDown"
+
+[[keys]]
+  index = 9
+  color = "#ff8000"
+  [keys.action]
+    keycode = "VolumeUp"
+
+[info.widget]
+  id = "time"
+  [info.widget.config]
+    format = "%H:%i;%l %d %M"
+    font = "bold;regular"
+    layout = "0x0+248x38;0x38+248x20"

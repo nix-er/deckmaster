@@ -31,6 +31,10 @@ type Deck struct {
 	DialWidgets []Widget
 	Dials       map[uint8]DialConfig
 	Swipe       SwipeConfig
+
+	// InfoWidget is shown on the info screen (Stream Deck Neo), nil if
+	// there is none.
+	InfoWidget Widget
 }
 
 // LoadDeck loads a deck configuration.
@@ -64,7 +68,8 @@ func LoadDeck(dev *streamdeck.Device, base string, deck string) (*Deck, error) {
 		keyMap[k.Index] = k
 	}
 
-	for i := uint8(0); i < dev.Keys; i++ {
+	// touch keys follow the keys with displays
+	for i := uint8(0); i < dev.Keys+dev.TouchKeys; i++ {
 		bg := d.backgroundForKey(dev, i)
 
 		var w Widget
@@ -99,6 +104,13 @@ func LoadDeck(dev *streamdeck.Device, base string, deck string) (*Deck, error) {
 		d.DialWidgets = append(d.DialWidgets, w)
 	}
 
+	if dev.InfoScreenWidth > 0 && dc.Info.Widget.ID != "" {
+		d.InfoWidget, err = NewInfoWidget(dev, filepath.Dir(path), dc.Info)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return &d, nil
 }
 
@@ -118,10 +130,15 @@ func (d *Deck) loadBackground(dev *streamdeck.Device, bg string) error {
 	rows := int(dev.Rows)
 	cols := int(dev.Columns)
 	padding := int(dev.Padding)
-	pixels := int(dev.Pixels)
+	keyWidth := int(dev.KeyWidth)
+	keyHeight := int(dev.KeyHeight)
+	if keyWidth == 0 {
+		verbosef("Device has no key displays, ignoring the background image")
+		return nil
+	}
 
-	width := cols*pixels + (cols-1)*padding
-	height := rows*pixels + (rows-1)*padding
+	width := cols*keyWidth + (cols-1)*padding
+	height := rows*keyHeight + (rows-1)*padding
 	if background.Bounds().Dx() != width ||
 		background.Bounds().Dy() != height {
 		return fmt.Errorf("supplied background image has wrong dimensions, expected %dx%d pixels", width, height)
@@ -131,15 +148,21 @@ func (d *Deck) loadBackground(dev *streamdeck.Device, bg string) error {
 	return nil
 }
 
-// returns the background image for an individual key.
+// returns the background image for an individual key, nil for keys without a
+// display.
 func (d Deck) backgroundForKey(dev *streamdeck.Device, key uint8) image.Image {
+	if key >= dev.Keys || dev.KeyWidth == 0 {
+		return nil
+	}
+
 	padding := int(dev.Padding)
-	pixels := int(dev.Pixels)
-	bg := image.NewRGBA(image.Rect(0, 0, pixels, pixels))
+	keyWidth := int(dev.KeyWidth)
+	keyHeight := int(dev.KeyHeight)
+	bg := image.NewRGBA(image.Rect(0, 0, keyWidth, keyHeight))
 
 	if d.Background != nil {
-		startx := int(key%dev.Columns) * (pixels + padding)
-		starty := int(key/dev.Columns) * (pixels + padding)
+		startx := int(key%dev.Columns) * (keyWidth + padding)
+		starty := int(key/dev.Columns) * (keyHeight + padding)
 		draw.Draw(bg, bg.Bounds(), d.Background, image.Point{startx, starty}, draw.Src)
 	}
 
@@ -241,6 +264,17 @@ func (d *Deck) triggerAction(dev *streamdeck.Device, index uint8, hold bool) {
 // triggerDialAction triggers the action of a pressed dial.
 func (d *Deck) triggerDialAction(dev *streamdeck.Device, index uint8, hold bool) {
 	d.triggerWidgetAction(dev, d.DialWidgets, index, hold)
+	d.refreshRing(index)
+}
+
+// refreshRing updates the LED ring of a dial in the next update cycle, to show
+// the effect of using the dial.
+func (d *Deck) refreshRing(index uint8) {
+	for _, w := range d.DialWidgets {
+		if r, ok := w.(*RingWidget); ok && r.Key() == index {
+			r.refresh()
+		}
+	}
 }
 
 // triggerWidgetAction triggers the (hold) action of the widget with the given
@@ -269,6 +303,8 @@ func (d *Deck) triggerWidgetAction(dev *streamdeck.Device, widgets []Widget, ind
 
 // turnDial triggers the left or right action of a dial, once per step.
 func (d *Deck) turnDial(dev *streamdeck.Device, index uint8, steps int8) {
+	defer d.refreshRing(index)
+
 	dc, ok := d.Dials[index]
 	if !ok {
 		return
@@ -373,7 +409,11 @@ func (d *Deck) runAction(dev *streamdeck.Device, a *ActionConfig) {
 
 // updateWidgets updates/repaints all the widgets.
 func (d *Deck) updateWidgets() {
-	for _, widgets := range [][]Widget{d.Widgets, d.DialWidgets} {
+	groups := [][]Widget{d.Widgets, d.DialWidgets}
+	if d.InfoWidget != nil {
+		groups = append(groups, []Widget{d.InfoWidget})
+	}
+	for _, widgets := range groups {
 		for _, w := range widgets {
 			if !w.RequiresUpdate() {
 				continue

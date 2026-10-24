@@ -1,0 +1,44 @@
+# Example deck for the Stream Deck Studio: 32 keys with 144x112 pixel displays,
+# and 2 dials with an LED ring and a knob LED each.
+
+[[keys]]
+  index = 0
+  [keys.widget]
+    id = "clock"
+
+[[keys]]
+  index = 1
+  [keys.widget]
+    id = "top"
+    [keys.widget.config]
+      mode = "cpu"
+
+[[keys]]
+  index = 16
+  [keys.widget]
+    id = "button"
+    [keys.widget.config]
+      label = "Play"
+  [keys.action]
+    keycode = "Playpause"
+
+# the ring shows the volume, refreshed every second and after the dial is used
+[[dials]]
+  index = 0
+  ring_color = "#00c060"
+  knob_color = "#ffffff"
+  ring_value = "pamixer --get-volume"
+  [dials.action]
+    keycode = "Mute"
+  [dials.action_left]
+    keycode = "VolumeDown"
+  [dials.action_right]
+    keycode = "VolumeUp"
+
+[[dials]]
+  index = 1
+  ring_color = "#4040ff"
+  [dials.action_left]
+    keycode = "Previoussong"
+  [dials.action_right]
+    keycode = "Nextsong"
