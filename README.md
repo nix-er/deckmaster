@@ -126,12 +126,13 @@ files to `$HOME/.config/systemd/user`.
 Description="Stream Deck Device Path"
 
 [Path]
-# the device name will be different if you use streamdeck-mini or streamdeck-xl
+# /dev/streamdeck is created by the optional SYMLINK rule at the end of
+# udev/70-streamdeck.rules
 PathExists=/dev/streamdeck
 Unit=streamdeck.service
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=default.target
 ```
 
 `streamdeck.service` contents:

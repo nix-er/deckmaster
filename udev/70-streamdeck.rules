@@ -78,3 +78,7 @@ KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0fd9", ATTRS{idProduct
 # Keyboard emulation: deckmaster needs write access to /dev/uinput. Uncomment
 # this rule, or add your user to the group that owns /dev/uinput.
 # KERNEL=="uinput", SUBSYSTEM=="misc", OPTIONS+="static_node=uinput", GROUP="input", MODE="0660", TAG+="uaccess"
+
+# systemd path activation (see README): uncomment to create /dev/streamdeck for
+# a connected device. With several devices it points at the last one plugged in.
+# KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0fd9", SYMLINK+="streamdeck"
