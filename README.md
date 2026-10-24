@@ -110,8 +110,10 @@ seat access to the device, so no extra group membership is needed. The file name
 must sort before `73-seat-late.rules`, or `uaccess` has no effect. Unplug and
 re-plug the device, and you should be good to go.
 
-To emulate key presses, deckmaster also needs write access to `/dev/uinput`;
-see the commented rule at the end of the file.
+Emulating key presses needs no extra setup: deckmaster talks to your desktop
+session directly (see [Emulate key-presses](#emulate-key-presses)). Only the
+optional `-keyboard uinput` backend needs write access to `/dev/uinput`; see
+the commented rule at the end of the file.
 
 ### Starting deckmaster automatically
 
@@ -182,6 +184,13 @@ Set a sleep timeout after which the screen gets turned off:
 
 ```bash
 deckmaster -sleep 10m
+```
+
+Choose how key presses get emulated (`auto`, `wayland`, `x11`, `uinput` or
+`none`, see [Emulate key-presses](#emulate-key-presses)):
+
+```bash
+deckmaster -keyboard wayland
 ```
 
 ## Configuration
@@ -369,6 +378,33 @@ Emulate a series of key-presses with delay in between:
 ```
 
 A list of available `keycodes` can be found here: [keycodes](https://github.com/nix-er/deckmaster/blob/master/keycodes.go)
+
+Keycodes name physical keys on a US keyboard, whatever layout you use.
+
+By default (`-keyboard auto`), deckmaster sends key presses through your desktop
+session, so they only reach the apps in it:
+
+- On Wayland, it uses the virtual keyboard protocol
+  (`zwp_virtual_keyboard_manager_v1`), which niri, Hyprland, Sway, river and
+  other wlroots compositors support. deckmaster needs `WAYLAND_DISPLAY` in its
+  environment; when it runs as a systemd user service, make sure your
+  compositor imports it into the systemd environment.
+- On X11, it uses the XTEST extension.
+
+Some compositors, such as niri, don't apply their own keybindings to virtual
+keyboard input; key presses go straight to the focused window. To trigger a
+compositor action (volume, overview, workspaces), run it directly instead of
+emulating its shortcut:
+
+```toml
+[keys.action]
+  exec = "niri msg action show-hotkey-overlay"
+```
+
+`-keyboard uinput` creates a kernel-level virtual keyboard instead. It works
+everywhere, including on the text console and the lock screen, but it needs
+write access to `/dev/uinput`, and every program you run then gets that same
+access. Only use it if the other backends don't work for you.
 
 #### Paste to clipboard
 

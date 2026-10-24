@@ -75,8 +75,10 @@ KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0fd9", ATTRS{idProduct
 SUBSYSTEM=="usb", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="00e4", TAG+="uaccess"
 KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="00e4", TAG+="uaccess"
 
-# Keyboard emulation: deckmaster needs write access to /dev/uinput. Uncomment
-# this rule, or add your user to the group that owns /dev/uinput.
+# Keyboard emulation with -keyboard uinput only: that backend needs write access
+# to /dev/uinput. The default backends (Wayland, X11) need no rule. Granting
+# this lets every program of the logged-in user inject kernel-level input, so
+# only uncomment it if you need uinput.
 # KERNEL=="uinput", SUBSYSTEM=="misc", OPTIONS+="static_node=uinput", GROUP="input", MODE="0660", TAG+="uaccess"
 
 # systemd path activation (see README): uncomment to create /dev/streamdeck for

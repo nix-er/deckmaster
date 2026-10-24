@@ -215,7 +215,8 @@ func emulateKeyPress(keys string) {
 			_ = keyboard.KeyDown(kc)
 			defer keyboard.KeyUp(kc) //nolint:errcheck
 		} else {
-			_ = keyboard.KeyPress(kc)
+			_ = keyboard.KeyDown(kc)
+			_ = keyboard.KeyUp(kc)
 		}
 	}
 }

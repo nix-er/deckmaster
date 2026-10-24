@@ -12,7 +12,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/bendahl/uinput"
 	"github.com/godbus/dbus/v5"
 	"github.com/mitchellh/go-homedir"
 	"github.com/nix-er/streamdeck"
@@ -30,18 +29,19 @@ var (
 	deck *Deck
 
 	dbusConn *dbus.Conn
-	keyboard uinput.Keyboard
+	keyboard keyInjector
 	shutdown = make(chan error)
 
 	xorg          *Xorg
 	recentWindows []Window
 
-	deckFile   = flag.String("deck", "main.deck", "path to deck config file")
-	device     = flag.String("device", "", "which device to use (serial number)")
-	brightness = flag.Uint("brightness", 80, "brightness in percent")
-	sleep      = flag.String("sleep", "", "sleep timeout")
-	verbose    = flag.Bool("verbose", false, "verbose output")
-	version    = flag.Bool("version", false, "display version")
+	deckFile        = flag.String("deck", "main.deck", "path to deck config file")
+	device          = flag.String("device", "", "which device to use (serial number)")
+	brightness      = flag.Uint("brightness", 80, "brightness in percent")
+	sleep           = flag.String("sleep", "", "sleep timeout")
+	verbose         = flag.Bool("verbose", false, "verbose output")
+	version         = flag.Bool("version", false, "display version")
+	keyboardBackend = flag.String("keyboard", "auto", "keyboard emulation backend: auto, wayland, x11, uinput or none")
 )
 
 const (
@@ -418,13 +418,7 @@ func run() error {
 	}
 
 	// initialize virtual keyboard
-	keyboard, err = uinput.CreateKeyboard("/dev/uinput", []byte("Deckmaster"))
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Could not create virtual input device (/dev/uinput): %s\n", err)
-		fmt.Fprintln(os.Stderr, "Emulating keyboard events will be disabled!")
-	} else {
-		defer keyboard.Close() //nolint:errcheck
-	}
+	defer initKeyboard(*keyboardBackend)()
 
 	// load deck
 	deck, err = LoadDeck(dev, ".", *deckFile)
