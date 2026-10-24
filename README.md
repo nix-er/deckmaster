@@ -380,13 +380,18 @@ A list of available `keycodes` can be found here: [keycodes](https://github.com/
 #### Trigger a dbus call
 
 ```toml
-[keys.action]
-  [dbus]
-    object = "object"
-    path = "path"
-    method = "method"
-    value = "value"
+[keys.action.dbus]
+  object = "object"
+  path = "path"
+  method = "method"
+  value = "value" # optional
 ```
+
+Without a `value` the method is called without arguments. A plain `value` is
+passed as a string; prefix it with a type like `dbus-send` does to pass
+something else, e.g. `int32:4`, `uint32:4`, `int64:4`, `uint64:4`,
+`int16:4`, `uint16:4`, `byte:4`, `double:0.5`, `boolean:true`,
+`objpath:/org/example` or `string:int32:4` (the string `int32:4`).
 
 #### Device actions
 

@@ -225,21 +225,148 @@ func emulateClipboard(text string) {
 	emulateKeyPress("29-47") // ctrl-v
 }
 
+// parseDBusValue turns a dbus action value into method arguments. An empty
+// value means no arguments. Like dbus-send, a value can be prefixed with its
+// type (e.g. "int32:4"); anything else is passed as a string.
+func parseDBusValue(value string) ([]interface{}, error) {
+	if value == "" {
+		return nil, nil
+	}
+
+	typ, v, ok := strings.Cut(value, ":")
+	if !ok {
+		return []interface{}{value}, nil
+	}
+
+	var arg interface{}
+	var err error
+	switch typ {
+	case "string":
+		arg = v
+	case "objpath":
+		arg = dbus.ObjectPath(v)
+	case "boolean":
+		arg, err = strconv.ParseBool(v)
+	case "byte":
+		var n uint64
+		n, err = strconv.ParseUint(v, 10, 8)
+		arg = byte(n)
+	case "int16":
+		var n int64
+		n, err = strconv.ParseInt(v, 10, 16)
+		arg = int16(n)
+	case "uint16":
+		var n uint64
+		n, err = strconv.ParseUint(v, 10, 16)
+		arg = uint16(n)
+	case "int32":
+		var n int64
+		n, err = strconv.ParseInt(v, 10, 32)
+		arg = int32(n)
+	case "uint32":
+		var n uint64
+		n, err = strconv.ParseUint(v, 10, 32)
+		arg = uint32(n)
+	case "int64":
+		arg, err = strconv.ParseInt(v, 10, 64)
+	case "uint64":
+		arg, err = strconv.ParseUint(v, 10, 64)
+	case "double":
+		arg, err = strconv.ParseFloat(v, 64)
+	default:
+		// not a type prefix, just a string containing a colon
+		return []interface{}{value}, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("invalid dbus %s value %q: %w", typ, v, err)
+	}
+
+	return []interface{}{arg}, nil
+}
+
 // executes a dbus method.
-func executeDBusMethod(object, path, method, args string) {
-	call := dbusConn.Object(object, dbus.ObjectPath(path)).Call(method, 0, args)
+func executeDBusMethod(object, path, method, value string) {
+	args, err := parseDBusValue(value)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "dbus call failed: %s\n", err)
+		return
+	}
+
+	call := dbusConn.Object(object, dbus.ObjectPath(path)).Call(method, 0, args...)
 	if call.Err != nil {
 		fmt.Fprintf(os.Stderr, "dbus call failed: %s\n", call.Err)
 	}
 }
 
+// splitCommand splits a command line into its arguments. Arguments are
+// separated by whitespace; single and double quotes group words, and a
+// backslash escapes the next character (except inside single quotes).
+func splitCommand(cmd string) ([]string, error) {
+	var args []string
+	var arg strings.Builder
+	inArg := false
+	var quote rune
+
+	runes := []rune(cmd)
+	for i := 0; i < len(runes); i++ {
+		r := runes[i]
+		switch {
+		case quote == '\'':
+			if r == '\'' {
+				quote = 0
+			} else {
+				arg.WriteRune(r)
+			}
+		case r == '\\':
+			if i+1 == len(runes) {
+				return nil, fmt.Errorf("trailing backslash")
+			}
+			i++
+			arg.WriteRune(runes[i])
+			inArg = true
+		case quote == '"':
+			if r == '"' {
+				quote = 0
+			} else {
+				arg.WriteRune(r)
+			}
+		case r == '\'' || r == '"':
+			quote = r
+			inArg = true
+		case r == ' ' || r == '\t' || r == '\n':
+			if inArg {
+				args = append(args, arg.String())
+				arg.Reset()
+				inArg = false
+			}
+		default:
+			arg.WriteRune(r)
+			inArg = true
+		}
+	}
+	if quote != 0 {
+		return nil, fmt.Errorf("unterminated %c quote", quote)
+	}
+	if inArg {
+		args = append(args, arg.String())
+	}
+
+	return args, nil
+}
+
 // executes a command.
 func executeCommand(cmd string) {
-	exp, err := expandPath("", cmd)
-	if err == nil {
-		cmd = exp
+	args, err := splitCommand(cmd)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Command failed: %s\n", err)
+		return
 	}
-	args := strings.Split(cmd, " ")
+	if len(args) == 0 {
+		return
+	}
+	if exp, err := expandPath("", args[0]); err == nil {
+		args[0] = exp
+	}
 
 	c := exec.Command(args[0], args[1:]...) //nolint:gosec
 	if *verbose {
