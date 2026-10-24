@@ -6,6 +6,8 @@ import (
 
 	"github.com/flopp/go-findfont"
 	"golang.org/x/image/font"
+	"golang.org/x/image/font/gofont/gobold"
+	"golang.org/x/image/font/gofont/goregular"
 	"golang.org/x/image/font/opentype"
 )
 
@@ -74,22 +76,39 @@ func loadFont(name string) (*opentype.Font, error) {
 	return opentype.Parse(ttf)
 }
 
+// loadFontOrFallback loads the named font. If it can't be found, it falls
+// back to the given embedded font, so a missing Roboto isn't fatal.
+func loadFontOrFallback(name string, fallback []byte) (*opentype.Font, error) {
+	ttf, err := loadFont(name)
+	if err == nil {
+		return ttf, nil
+	}
+	fmt.Fprintf(os.Stderr, "Can't load font %s, using a built-in fallback: %s\n", name, err)
+
+	ttf, err = opentype.Parse(fallback)
+	if err != nil {
+		return nil, fmt.Errorf("error loading fallback font: %w", err)
+	}
+	return ttf, nil
+}
+
 // loadFonts loads the default fonts.
 func loadFonts() error {
 	var err error
-	ttfFont, err = loadFont("Roboto-Regular.ttf")
+	ttfFont, err = loadFontOrFallback("Roboto-Regular.ttf", goregular.TTF)
 	if err != nil {
-		return fmt.Errorf("error loading font: %w", err)
+		return err
 	}
 
-	ttfThinFont, err = loadFont("Roboto-Thin.ttf")
+	// the Go fonts have no thin variant
+	ttfThinFont, err = loadFontOrFallback("Roboto-Thin.ttf", goregular.TTF)
 	if err != nil {
-		return fmt.Errorf("error loading font: %w", err)
+		return err
 	}
 
-	ttfBoldFont, err = loadFont("Roboto-Bold.ttf")
+	ttfBoldFont, err = loadFontOrFallback("Roboto-Bold.ttf", gobold.TTF)
 	if err != nil {
-		return fmt.Errorf("error loading font: %w", err)
+		return err
 	}
 
 	return nil
