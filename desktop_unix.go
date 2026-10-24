@@ -260,6 +260,11 @@ func (x Xorg) waitForEvent(events chan<- xgb.Event) {
 			verbosef("wait for event: %s", err)
 			continue
 		}
+		if ev == nil {
+			// the connection was closed, e.g. on logout
+			fmt.Fprintln(os.Stderr, "Lost connection to the X server, window tracking disabled")
+			return
+		}
 		events <- ev
 	}
 }
