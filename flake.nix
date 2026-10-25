@@ -20,7 +20,7 @@
           src = nixpkgs.lib.cleanSource ./.;
 
           # Update when go.mod/go.sum change: set to nixpkgs.lib.fakeHash, build, copy the hash.
-          vendorHash = "sha256-chNRL4LjBgnpruPBBojrankH8JUYFIPeXG6d9j4S8tE=";
+          vendorHash = "sha256-opA7PatQpwakKuVr+Z4UtuJbjczLC3AggNOdH9obivM=";
 
           ldflags = [
             "-s"
@@ -33,10 +33,15 @@
           postInstall = ''
             install -Dm644 udev/70-streamdeck.rules $out/lib/udev/rules.d/70-streamdeck.rules
             # deckmaster looks up its default fonts (Roboto) via XDG_DATA_DIRS,
-            # and pastes on Wayland with wl-copy
+            # and pastes with wl-copy on Wayland or xclip on X11
             wrapProgram $out/bin/deckmaster \
               --suffix XDG_DATA_DIRS : ${pkgs.roboto}/share \
-              --suffix PATH : ${pkgs.wl-clipboard}/bin
+              --suffix PATH : ${
+                pkgs.lib.makeBinPath [
+                  pkgs.wl-clipboard
+                  pkgs.xclip
+                ]
+              }
           '';
 
           meta = {

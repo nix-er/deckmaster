@@ -13,7 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/atotto/clipboard"
 	"github.com/godbus/dbus/v5"
 	"github.com/nix-er/streamdeck"
 )
@@ -223,7 +222,7 @@ func emulateKeyPress(keys string) {
 
 // emulates a clipboard paste.
 func emulateClipboard(text string) {
-	err := clipboard.WriteAll(text)
+	err := copyToClipboard(text)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Pasting to clipboard failed: %s\n", err)
 	}

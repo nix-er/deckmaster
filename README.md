@@ -429,6 +429,10 @@ access. Only use it if the other backends don't work for you.
   paste = "some text"
 ```
 
+This copies the text to the clipboard and presses ctrl-v. It needs `wl-copy`
+(from wl-clipboard) on Wayland, or `xclip` or `xsel` on X11; the Nix package
+brings its own.
+
 #### Trigger a dbus call
 
 ```toml
