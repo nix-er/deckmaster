@@ -162,7 +162,7 @@ func NewWeatherWidget(bw *BaseWidget, opts WidgetConfig) (*WeatherWidget, error)
 	}
 	// this needs to be called after NewButtonWidget, otherwise its value gets
 	// overwritten by it.
-	bw.setInterval(time.Duration(opts.Interval)*time.Millisecond, time.Minute)
+	bw.setInterval(msDuration(opts.Interval), time.Minute)
 
 	return &WeatherWidget{
 		ButtonWidget: widget,

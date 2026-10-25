@@ -9,11 +9,11 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/godbus/dbus/v5"
-	"github.com/mitchellh/go-homedir"
 	"github.com/nix-er/streamdeck"
 )
 
@@ -63,7 +63,7 @@ func verbosef(format string, a ...interface{}) {
 
 func expandPath(base, path string) (string, error) {
 	var err error
-	path, err = homedir.Expand(path)
+	path, err = expandHome(path)
 	if err != nil {
 		return "", err
 	}
@@ -76,6 +76,22 @@ func expandPath(base, path string) (string, error) {
 	}
 
 	return filepath.Abs(path)
+}
+
+// expandHome replaces a leading ~ in path with the user's home directory.
+func expandHome(path string) (string, error) {
+	if path != "~" && !strings.HasPrefix(path, "~/") {
+		if strings.HasPrefix(path, "~") {
+			return "", errors.New("cannot expand user-specific home dir")
+		}
+		return path, nil
+	}
+
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(home, path[1:]), nil
 }
 
 func eventLoop(dev *streamdeck.Device, tch chan interface{}) error {
@@ -373,7 +389,7 @@ func initDevice() (*streamdeck.Device, error) {
 	if *brightness > 100 {
 		*brightness = 100
 	}
-	if err = dev.SetBrightness(uint8(*brightness)); err != nil {
+	if err = dev.SetBrightness(uint8(*brightness)); err != nil { //nolint:gosec // clamped to 100 above
 		return &dev, err
 	}
 

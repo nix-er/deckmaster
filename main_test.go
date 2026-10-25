@@ -100,3 +100,22 @@ func TestPressTrackerMissedRelease(t *testing.T) {
 
 	checkTriggers(t, triggers, trigger{3, true}, trigger{3, true})
 }
+
+func TestExpandHome(t *testing.T) {
+	t.Setenv("HOME", "/home/test")
+	for path, want := range map[string]string{
+		"~":          "/home/test",
+		"~/a/b.deck": "/home/test/a/b.deck",
+		"a/~/b":      "a/~/b",
+		"/abs":       "/abs",
+		"":           "",
+	} {
+		got, err := expandHome(path)
+		if err != nil || got != want {
+			t.Errorf("expandHome(%q) = %q, %v; want %q", path, got, err, want)
+		}
+	}
+	if _, err := expandHome("~user/x"); err == nil {
+		t.Error("expandHome(\"~user/x\") succeeded, want an error")
+	}
+}

@@ -161,7 +161,7 @@ func (x Xorg) CloseWindow(w Window) error {
 }
 
 func (x Xorg) atom(aname string) *xproto.InternAtomReply {
-	a, err := xproto.InternAtom(x.conn, true, uint16(len(aname)), aname).Reply()
+	a, err := xproto.InternAtom(x.conn, true, uint16(len(aname)), aname).Reply() //nolint:gosec // atom names are short constants
 	if err != nil {
 		fatal("atom:", err)
 	}

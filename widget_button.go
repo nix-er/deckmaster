@@ -3,7 +3,6 @@ package main
 import (
 	"image"
 	"image/color"
-	"time"
 )
 
 // ButtonWidget is a simple widget displaying an icon and/or label.
@@ -19,7 +18,7 @@ type ButtonWidget struct {
 
 // NewButtonWidget returns a new ButtonWidget.
 func NewButtonWidget(bw *BaseWidget, opts WidgetConfig) (*ButtonWidget, error) {
-	bw.setInterval(time.Duration(opts.Interval)*time.Millisecond, 0)
+	bw.setInterval(msDuration(opts.Interval), 0)
 
 	var icon, label string
 	var fontsize float64

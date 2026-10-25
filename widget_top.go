@@ -25,7 +25,7 @@ type TopWidget struct {
 
 // NewTopWidget returns a new TopWidget.
 func NewTopWidget(bw *BaseWidget, opts WidgetConfig) (*TopWidget, error) {
-	bw.setInterval(time.Duration(opts.Interval)*time.Millisecond, time.Second/2)
+	bw.setInterval(msDuration(opts.Interval), time.Second/2)
 
 	var mode string
 	var color, fillColor color.Color

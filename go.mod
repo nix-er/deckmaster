@@ -11,7 +11,6 @@ require (
 	github.com/jezek/xgb v1.3.1
 	github.com/jezek/xgbutil v0.0.0-20260124183602-9fd151d6a51a
 	github.com/lucasb-eyer/go-colorful v1.4.1
-	github.com/mitchellh/go-homedir v1.1.0
 	github.com/nix-er/streamdeck v0.8.0
 	github.com/shirou/gopsutil/v4 v4.26.9
 	golang.org/x/image v0.47.0

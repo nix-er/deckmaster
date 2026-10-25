@@ -335,6 +335,15 @@ func (w *BaseWidget) setInterval(interval time.Duration, defaultInterval time.Du
 	w.interval = interval
 }
 
+// msDuration converts a millisecond count from a deck file to a duration,
+// saturating instead of overflowing.
+func msDuration(ms uint) time.Duration {
+	if ms > math.MaxInt64/uint(time.Millisecond) {
+		return math.MaxInt64
+	}
+	return time.Duration(ms) * time.Millisecond //nolint:gosec // bounded above
+}
+
 func loadImage(path string) (image.Image, error) {
 	f, err := os.Open(path)
 	if err != nil {

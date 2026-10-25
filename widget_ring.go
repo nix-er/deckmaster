@@ -45,7 +45,7 @@ func NewRingWidget(bw *BaseWidget, dc DialConfig) (*RingWidget, error) {
 	}
 
 	if w.value != nil {
-		bw.setInterval(time.Duration(dc.RingInterval)*time.Millisecond, time.Second)
+		bw.setInterval(msDuration(dc.RingInterval), time.Second)
 	}
 	return w, nil
 }

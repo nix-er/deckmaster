@@ -24,7 +24,7 @@ type CommandWidget struct {
 
 // NewCommandWidget returns a new CommandWidget.
 func NewCommandWidget(bw *BaseWidget, opts WidgetConfig) (*CommandWidget, error) {
-	bw.setInterval(time.Duration(opts.Interval)*time.Millisecond, time.Second)
+	bw.setInterval(msDuration(opts.Interval), time.Second)
 
 	var commands, fonts, frameReps []string
 	var colors []color.Color

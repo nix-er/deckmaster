@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"image"
+	"math"
 	"os"
 )
 
@@ -25,6 +26,9 @@ func NewRecentWindowWidget(bw *BaseWidget, opts WidgetConfig) (*RecentWindowWidg
 	r.read("showTitle", &showTitle)
 	if r.err != nil {
 		return nil, r.err
+	}
+	if window < 0 || window > math.MaxUint8 {
+		return nil, fmt.Errorf("window must be between 0 and %d, got %d", math.MaxUint8, window)
 	}
 
 	widget, err := NewButtonWidget(bw, opts)

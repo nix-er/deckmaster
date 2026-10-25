@@ -589,12 +589,12 @@ func (d *Deck) adjustBrightness(dev *streamdeck.Device, value string) {
 		if v == math.MinInt64 {
 			v = 10
 		}
-		v = int64(*brightness) - v
+		v = int64(*brightness) - v //nolint:gosec // brightness is at most 100
 	case '+': // brightness+[n]:
 		if v == math.MinInt64 {
 			v = 10
 		}
-		v = int64(*brightness) + v
+		v = int64(*brightness) + v //nolint:gosec // brightness is at most 100
 	default:
 		v = math.MinInt64
 	}
@@ -609,10 +609,10 @@ func (d *Deck) adjustBrightness(dev *streamdeck.Device, value string) {
 	} else if v > 100 {
 		v = 100
 	}
-	if err := dev.SetBrightness(uint8(v)); err != nil {
+	if err := dev.SetBrightness(uint8(v)); err != nil { //nolint:gosec // clamped to 1..100 above
 		fmt.Fprintln(os.Stderr, "Can't set the brightness:", err)
 		return
 	}
 
-	*brightness = uint(v)
+	*brightness = uint(v) //nolint:gosec // clamped to 1..100 above
 }
