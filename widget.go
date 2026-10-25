@@ -9,6 +9,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	colorful "github.com/lucasb-eyer/go-colorful"
@@ -365,17 +366,26 @@ func loadImage(path string) (image.Image, error) {
 	}
 	defer f.Close() //nolint:errcheck
 
+	if strings.EqualFold(filepath.Ext(path), ".svg") {
+		return rasterizeSVG(f)
+	}
+
 	icon, _, err := image.Decode(f)
 	return icon, err
 }
 
 func loadThemeImage(theme string, img string) (image.Image, error) {
-	path := filepath.Join("~", ".local", "share", "deckmaster", "themes", theme, img+".png")
-	abs, err := expandPath("", path)
+	dir := filepath.Join("~", ".local", "share", "deckmaster", "themes", theme)
+	abs, err := expandPath("", dir)
 	if err != nil {
 		return nil, err
 	}
-	return loadImage(abs)
+
+	path := filepath.Join(abs, img+".svg")
+	if _, err := os.Stat(path); err != nil {
+		path = filepath.Join(abs, img+".png")
+	}
+	return loadImage(path)
 }
 
 func flattenImage(img image.Image, clr color.Color) image.Image {

@@ -20,7 +20,7 @@
           src = nixpkgs.lib.cleanSource ./.;
 
           # Update when go.mod/go.sum change: set to nixpkgs.lib.fakeHash, build, copy the hash.
-          vendorHash = "sha256-opA7PatQpwakKuVr+Z4UtuJbjczLC3AggNOdH9obivM=";
+          vendorHash = "sha256-kngnBr5zWe6m2WM6X42mFL/uKY9O1xZstkGWnBQwGFs=";
 
           ldflags = [
             "-s"
@@ -53,6 +53,40 @@
           };
         };
         default = self.packages.${pkgs.stdenv.hostPlatform.system}.deckmaster;
+
+        # Brand logos from Simple Icons, in their brand colors, packaged as a
+        # Stream Deck icon pack. Use with the iconPacks module option, e.g.
+        # icon = "firefox" in a deck.
+        simple-icons = pkgs.stdenvNoCC.mkDerivation rec {
+          pname = "deckmaster-simple-icons";
+          version = "16.35.0";
+
+          src = pkgs.fetchurl {
+            url = "https://github.com/mackenly/simple-icons-stream-deck/releases/download/v${version}/com.mackenly.simpleiconsstreamdeck.streamDeckIconPack";
+            hash = "sha256-dL6sYxxHmlpoUBlNCNQJDr/FI/tk5A+LS3FazXvjWKY=";
+          };
+
+          nativeBuildInputs = [ pkgs.unzip ];
+
+          unpackPhase = ''
+            unzip -q $src
+          '';
+
+          installPhase = ''
+            dir=$out/share/deckmaster/icons/simple-icons
+            mkdir -p $dir
+            cp -r com.mackenly.simpleiconsstreamdeck.sdIconPack/icons com.mackenly.simpleiconsstreamdeck.sdIconPack/icons.json $dir
+          '';
+
+          meta = {
+            description = "Simple Icons brand logos for deckmaster";
+            homepage = "https://github.com/mackenly/simple-icons-stream-deck";
+            # The logos are trademarks of their owners, see
+            # https://github.com/simple-icons/simple-icons/blob/develop/DISCLAIMER.md
+            license = nixpkgs.lib.licenses.cc0;
+            platforms = nixpkgs.lib.platforms.all;
+          };
+        };
       });
 
       overlays.default = final: _prev: {
@@ -80,12 +114,16 @@
                     enable = true;
                     deck = "~/main.deck";
                     sleep = "10m";
+                    iconPacks = [ self.packages.${pkgs.stdenv.hostPlatform.system}.simple-icons ];
                   };
                 }
               ];
             };
+            unit = system.config.systemd.user.units."deckmaster.service".text;
           in
-          pkgs.writeText "deckmaster.service" system.config.systemd.user.units."deckmaster.service".text;
+          assert nixpkgs.lib.assertMsg (nixpkgs.lib.hasInfix "DECKMASTER_ICON_PATH=" unit)
+            "deckmaster.service doesn't set DECKMASTER_ICON_PATH";
+          pkgs.writeText "deckmaster.service" unit;
       });
 
       devShells = forAllSystems (pkgs: {

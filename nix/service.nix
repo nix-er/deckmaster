@@ -57,6 +57,16 @@ in
       description = "Turn the display off after this long without input.";
     };
 
+    iconPacks = mkOption {
+      type = types.listOf types.package;
+      default = [ ];
+      example = lib.literalExpression "[ deckmaster.packages.\${system}.simple-icons ]";
+      description = ''
+        Icon packs to look up button icons by name in, e.g. `icon = "firefox"`.
+        Packs keep their icons in `share/deckmaster/icons/<pack>`.
+      '';
+    };
+
     extraArgs = mkOption {
       type = types.listOf types.str;
       default = [ ];
@@ -93,6 +103,11 @@ in
         ]
         ++ cfg.extraArgs
       );
+      Environment = lib.optionals (cfg.iconPacks != [ ]) [
+        "DECKMASTER_ICON_PATH=${
+          lib.concatMapStringsSep ":" (p: "${p}/share/deckmaster/icons") cfg.iconPacks
+        }"
+      ];
       ExecReload = "${pkgs.coreutils}/bin/kill -HUP $MAINPID";
       Restart = "on-failure";
       RestartSec = 3;

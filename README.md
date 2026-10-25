@@ -104,6 +104,14 @@ takes the same options. Keep `programs.deckmaster.enable` in your NixOS
 configuration for the udev rules. Both modules also accept `keyboard`, `device`,
 `sleep` and `extraArgs`.
 
+`iconPacks` adds [icon packs](#icon-packs) to the service, so deck files can use
+icons by name. The flake packages Simple Icons, which Nix fetches from the pack's
+release at build time:
+
+```nix
+programs.deckmaster.iconPacks = [ inputs.deckmaster.packages.${pkgs.system}.simple-icons ];
+```
+
 `overlays.default` adds `pkgs.deckmaster`, if you'd rather use the package directly.
 
 `nix develop` opens a shell with Go, a C compiler, golangci-lint and goreleaser.
@@ -254,7 +262,38 @@ A simple button that can display an image and/or a label.
     flatten = true # optional
 ```
 
-If `flatten` is `true` all opaque pixels of the icon will have the color `color`.
+`icon` is either a PNG or SVG file, or the name of an icon from an
+[icon pack](#icon-packs), such as `icon = "firefox"`. If `flatten` is `true`
+all opaque pixels of the icon will have the color `color`.
+
+##### Icon packs
+
+An icon without a file extension, like `firefox` or `simple-icons/firefox`, is
+looked up by name, in icon packs that live in these directories:
+
+1. the directories in `$DECKMASTER_ICON_PATH` (colon-separated)
+2. `~/.local/share/deckmaster/icons` (`$XDG_DATA_HOME/deckmaster/icons`)
+3. `deckmaster/icons` in each of `$XDG_DATA_DIRS`, e.g. `/usr/share/deckmaster/icons`
+
+Each directory in there is a pack, keeping its `.svg` or `.png` icons either
+directly inside or in an `icons` subdirectory. That makes unpacked Stream Deck
+icon packs work as they are. `simple-icons/firefox` only looks in the pack
+called `simple-icons`, while `firefox` takes the first match from any pack.
+
+For example, to install [Simple Icons](https://github.com/mackenly/simple-icons-stream-deck),
+3000+ brand logos in their brand colors, download the `.streamDeckIconPack`
+file from its [releases](https://github.com/mackenly/simple-icons-stream-deck/releases)
+and unzip it:
+
+```bash
+mkdir -p ~/.local/share/deckmaster/icons/simple-icons
+unzip com.mackenly.simpleiconsstreamdeck.streamDeckIconPack -d /tmp/simple-icons
+mv /tmp/simple-icons/*.sdIconPack/* ~/.local/share/deckmaster/icons/simple-icons/
+```
+
+On NixOS, use the module's `iconPacks` option instead (see [Nix](#nix)). Some
+logos are black, which is invisible on a black key. Give them a color with
+`color = "#ffffff"` and `flatten = true`.
 
 #### Recent Window (requires X11)
 
@@ -354,7 +393,7 @@ A widget that displays the weather condition and temperature.
 The supported location types can be found [here](http://wttr.in/:help). The unit
 has to be either `celsius` or `fahrenheit`. If `flatten` is `true` all opaque
 pixels of the condition icon will have the color `color`. In case `theme` is set
-corresponding icons with correct names need to be placed in
+corresponding PNG or SVG icons with correct names need to be placed in
 `~/.local/share/deckmaster/themes/[theme]`. The default icons with their
 respective names can be found [here](https://github.com/nix-er/deckmaster/tree/master/assets/weather).
 

@@ -54,9 +54,14 @@ func NewButtonWidget(bw *BaseWidget, opts WidgetConfig) (*ButtonWidget, error) {
 	return w, nil
 }
 
-// LoadImage loads an image from disk.
+// LoadImage loads an image from disk, given its path or icon name.
 func (w *ButtonWidget) LoadImage(path string) error {
-	path, err := expandPath(w.base, path)
+	var err error
+	if isIconName(path) {
+		path, err = findIcon(path)
+	} else {
+		path, err = expandPath(w.base, path)
+	}
 	if err != nil {
 		return err
 	}

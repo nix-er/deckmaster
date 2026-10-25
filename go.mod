@@ -6,12 +6,14 @@ require (
 	github.com/BurntSushi/toml v1.6.0
 	github.com/bendahl/uinput v1.7.0
 	github.com/flopp/go-findfont v0.1.0
+	github.com/fyne-io/oksvg v0.2.0
 	github.com/godbus/dbus/v5 v5.2.4
 	github.com/jezek/xgb v1.3.1
 	github.com/jezek/xgbutil v0.0.0-20260124183602-9fd151d6a51a
 	github.com/lucasb-eyer/go-colorful v1.4.1
 	github.com/nix-er/streamdeck v0.8.0
 	github.com/shirou/gopsutil/v4 v4.26.9
+	github.com/srwiley/rasterx v0.0.0-20220730225603-2ab79fcdd4ef
 	golang.org/x/image v0.47.0
 	golang.org/x/sys v0.49.0
 )
@@ -27,5 +29,6 @@ require (
 	github.com/tklauser/go-sysconf v0.4.0 // indirect
 	github.com/tklauser/numcpus v0.12.0 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
+	golang.org/x/net v0.61.0 // indirect
 	golang.org/x/text v0.43.0 // indirect
 )
