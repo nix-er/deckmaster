@@ -144,6 +144,12 @@ func writeIcon(t *testing.T, path string) {
 			img.Set(x, y, color.White)
 		}
 	}
+	writePNG(t, path, img)
+}
+
+// writePNG writes an image to a PNG file, creating its directory.
+func writePNG(t *testing.T, path string, img image.Image) {
+	t.Helper()
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		t.Fatal(err)
 	}
@@ -481,5 +487,52 @@ func TestLoadThemeImage(t *testing.T) {
 	}
 	if _, err := loadThemeImage("mine", "moon"); err == nil {
 		t.Error("expected an error for a missing icon")
+	}
+}
+
+func TestLoadFont(t *testing.T) {
+	dir := t.TempDir()
+	good := filepath.Join(dir, "good.ttf")
+	bad := filepath.Join(dir, "bad.ttf")
+	if err := os.WriteFile(good, goregular.TTF, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(bad, []byte("no font"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	if ttf, err := loadFont(good); err != nil || ttf == nil {
+		t.Errorf("got %v, %v; want the font", ttf, err)
+	}
+	for _, name := range []string{bad, "NoSuchFont-Regular.ttf"} {
+		if _, err := loadFont(name); err == nil {
+			t.Errorf("loadFont(%q): expected an error", name)
+		}
+	}
+	// a font that can be found but not read
+	if err := os.Chmod(bad, 0); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := loadFont(bad); err == nil {
+		t.Error("expected an error for an unreadable font")
+	}
+}
+
+// A command widget repaints when its commands have new output, even before
+// its interval is over.
+func TestCommandWidgetRequiresUpdate(t *testing.T) {
+	w, _ := renderWidget(t, xlDevice(), displayKey, WidgetConfig{ID: "command", Interval: 3600000, Config: map[string]interface{}{
+		"command": "echo 42",
+	}})
+	cw := w.(*CommandWidget)
+	waitForFresh(t, cw.commands)
+	if !w.RequiresUpdate() {
+		t.Error("no update for new output")
+	}
+	if err := w.Update(); err != nil {
+		t.Fatal(err)
+	}
+	if w.RequiresUpdate() {
+		t.Error("update without new output")
 	}
 }

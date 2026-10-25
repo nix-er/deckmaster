@@ -2,9 +2,14 @@ package main
 
 import (
 	"fmt"
+	"image"
+	"image/color"
 	"os"
+	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/godbus/dbus/v5"
 )
@@ -188,5 +193,119 @@ func TestEmulateClipboard(t *testing.T) {
 	emulateClipboard("hello", "")
 	if len(kb.events) != 0 {
 		t.Errorf("pressed %v after copying failed, want nothing", kb.events)
+	}
+}
+
+// testBackground returns an image whose pixels encode their position.
+func testBackground(width, height int) *image.RGBA {
+	img := image.NewRGBA(image.Rect(0, 0, width, height))
+	for y := 0; y < height; y++ {
+		for x := 0; x < width; x++ {
+			img.Set(x, y, color.RGBA{uint8(x / 4), uint8(y / 2), 0, 255}) //nolint:gosec // small values
+		}
+	}
+	return img
+}
+
+func TestLoadDeckBackground(t *testing.T) {
+	dir := t.TempDir()
+	// 8 keys of 96 pixels with 32 pixels between them, 4 rows
+	writePNG(t, filepath.Join(dir, "bg.png"), testBackground(992, 480))
+	path := filepath.Join(dir, "test.deck")
+	if err := os.WriteFile(path, []byte(`background = "bg.png"`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	d, err := LoadDeck(xlDevice(), ".", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// key 9 is in the second column and row, at 128,128
+	bg := d.Widgets[9].(*BaseWidget).background
+	if got, want := bg.At(0, 0), (color.RGBA{32, 64, 0, 255}); got != want {
+		t.Errorf("key 9 background starts with %v, want %v", got, want)
+	}
+	if got := bg.Bounds().Size(); got != image.Pt(96, 96) {
+		t.Errorf("key background is %v, want 96x96", got)
+	}
+
+	// a Pedal has no key displays to show it on
+	d, err = LoadDeck(pedalDevice(), ".", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d.Background != nil {
+		t.Error("the Pedal got a background")
+	}
+}
+
+func TestLoadDeckBadBackground(t *testing.T) {
+	dir := t.TempDir()
+	writePNG(t, filepath.Join(dir, "small.png"), testBackground(96, 96))
+	if err := os.WriteFile(filepath.Join(dir, "text.png"), []byte("no image"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	for bg, want := range map[string]string{
+		"small.png":   "wrong dimensions, expected 992x480",
+		"text.png":    "unknown format",
+		"missing.png": "no such file",
+	} {
+		path := filepath.Join(dir, "test.deck")
+		if err := os.WriteFile(path, []byte(`background = "`+bg+`"`), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := LoadDeck(xlDevice(), ".", path); err == nil || !strings.Contains(err.Error(), want) {
+			t.Errorf("%s: got error %v, want %q", bg, err, want)
+		}
+	}
+}
+
+func TestTriggerDialAction(t *testing.T) {
+	d, err := LoadDeck(studioDevice(), ".", writeDeck(t, `
+[[dials]]
+  index = 1
+  ring_value = "echo 50"
+  [dials.action]
+    keycode = "2"
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ring := d.DialWidgets[1].(*RingWidget)
+	ring.interval = time.Hour
+	ring.lastUpdate = time.Now()
+
+	kb := withFakeKeyboard(t)
+	d.triggerDialAction(nil, 1, false)
+	if want := []string{"+2", "-2"}; !reflect.DeepEqual(kb.events, want) {
+		t.Errorf("pressed %v, want %v", kb.events, want)
+	}
+	// the ring shows the effect of pressing the dial right away
+	if !ring.RequiresUpdate() {
+		t.Error("ring doesn't update after pressing its dial")
+	}
+}
+
+func TestExecuteCommand(t *testing.T) {
+	// commands may start with ~
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	bin := filepath.Join(home, "bin")
+	if err := os.Mkdir(bin, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	fakeTool(t, bin, "tool")
+	executeCommand("~/bin/tool 'one arg' two")
+	if got := readFile(t, filepath.Join(bin, "args")); got != "one arg two\n" {
+		t.Errorf("args = %q, want one arg two", got)
+	}
+
+	// failing commands must return, also with their output shown
+	oldVerbose := *verbose
+	*verbose = true
+	t.Cleanup(func() { *verbose = oldVerbose })
+	for _, cmd := range []string{"", "echo 'unbalanced", "/no/such/command", "false"} {
+		executeCommand(cmd)
 	}
 }

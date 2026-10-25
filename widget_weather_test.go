@@ -187,3 +187,18 @@ func newWeatherWidget(t *testing.T, response string) (*WeatherWidget, *fakeOutpu
 	w.data.fresh = true
 	return w, out
 }
+
+// A weather widget repaints when new weather data arrives.
+func TestWeatherWidgetRequiresUpdate(t *testing.T) {
+	w, _ := newWeatherWidget(t, "o +5°C")
+	w.lastUpdate = time.Now()
+	if !w.RequiresUpdate() {
+		t.Error("no update for fresh data")
+	}
+	if err := w.Update(); err != nil {
+		t.Fatal(err)
+	}
+	if w.RequiresUpdate() {
+		t.Error("update without fresh data, before the interval is over")
+	}
+}

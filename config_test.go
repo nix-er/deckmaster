@@ -1,6 +1,10 @@
 package main
 
-import "testing"
+import (
+	"path/filepath"
+	"reflect"
+	"testing"
+)
 
 func dialsByIndex(dials Dials) map[uint8]DialConfig {
 	m := map[uint8]DialConfig{}
@@ -105,5 +109,34 @@ func TestLoadConfigWithoutDials(t *testing.T) {
 	}
 	if len(dc.Dials) != 0 {
 		t.Errorf("got %d dials, want 0", len(dc.Dials))
+	}
+}
+
+// A saved config loads the same again.
+func TestSaveConfig(t *testing.T) {
+	config := DeckConfig{
+		Background: "bg.png",
+		Keys: Keys{
+			{Index: 0, Widget: WidgetConfig{ID: "button", Config: map[string]interface{}{"label": "Hi"}},
+				Action: &ActionConfig{Exec: "true"}},
+			{Index: 1, Widget: WidgetConfig{ID: "clock"}, Color: "#ff0000"},
+		},
+		Dials: Dials{{Index: 0, Action: &ActionConfig{Keycode: "2"}, RingColor: "#00ff00"}},
+	}
+	path := filepath.Join(t.TempDir(), "saved.deck")
+	if err := config.Save(path); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := LoadConfig(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(got, config) {
+		t.Errorf("loaded %+v, want %+v", got, config)
+	}
+
+	if err := config.Save(filepath.Join(t.TempDir(), "missing", "saved.deck")); err == nil {
+		t.Error("expected an error saving to a missing directory")
 	}
 }
