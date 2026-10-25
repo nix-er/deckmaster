@@ -71,7 +71,7 @@ func (w *TimeWidget) Update() error {
 			image.Pt(-1, -1))
 	}
 
-	return w.render(w.dev, img)
+	return w.render(img)
 }
 
 func formatTime(t time.Time, format string) string {

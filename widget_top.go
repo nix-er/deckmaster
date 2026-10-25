@@ -132,5 +132,5 @@ func (w *TopWidget) Update() error {
 		w.color,
 		image.Pt(-1, -1))
 
-	return w.render(w.dev, img)
+	return w.render(img)
 }

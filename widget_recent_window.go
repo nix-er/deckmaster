@@ -76,7 +76,7 @@ func (w *RecentWindowWidget) Update() error {
 		return w.ButtonWidget.Update()
 	}
 
-	return w.render(w.dev, img)
+	return w.render(img)
 }
 
 // TriggerAction gets called when a button is pressed.

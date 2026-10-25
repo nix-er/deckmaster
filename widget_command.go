@@ -83,7 +83,7 @@ func (w *CommandWidget) Update() error {
 			w.colors[i],
 			image.Pt(-1, -1))
 	}
-	return w.render(w.dev, img)
+	return w.render(img)
 }
 
 // commandRunner runs commands in the background, so slow commands don't

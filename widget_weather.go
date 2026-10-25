@@ -185,11 +185,11 @@ func (w *WeatherWidget) Update() error {
 
 	cond, err := w.data.Condition()
 	if err != nil {
-		return w.render(w.dev, nil)
+		return w.render(nil)
 	}
 	temp, err := w.data.Temperature()
 	if err != nil {
-		return w.render(w.dev, nil)
+		return w.render(nil)
 	}
 
 	// don't trigger updates until new weather data is available
@@ -222,7 +222,7 @@ func (w *WeatherWidget) Update() error {
 			iconName = "sun"
 		}
 	default:
-		return w.render(w.dev, nil)
+		return w.render(nil)
 	}
 
 	var weatherIcon image.Image

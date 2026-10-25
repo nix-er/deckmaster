@@ -59,18 +59,18 @@ func (w *RingWidget) RequiresUpdate() bool {
 func (w *RingWidget) Update() error {
 	w.lastUpdate = time.Now()
 
-	if err := w.dev.SetDialKnobColor(w.key, ledColor(w.knobColor)); err != nil {
+	if err := w.out.SetDialKnobColor(w.key, ledColor(w.knobColor)); err != nil {
 		return err
 	}
 	if w.value == nil {
-		return w.dev.SetDialRingColor(w.key, ledColor(w.ringColor))
+		return w.out.SetDialRingColor(w.key, ledColor(w.ringColor))
 	}
 
 	c := w.ringColor
 	if c == nil {
 		c = DefaultColor
 	}
-	return w.dev.SetDialRingPercentage(w.key, c, w.percent())
+	return w.out.SetDialRingPercentage(w.key, c, w.percent())
 }
 
 // percent returns the latest output of the ring value command as a

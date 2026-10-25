@@ -8,7 +8,7 @@ import (
 )
 
 // The devices below describe the hardware without a connection to it, so
-// tests must not render widgets on them.
+// tests render widgets on a fakeOutput instead.
 
 func neoDevice() *streamdeck.Device {
 	return &streamdeck.Device{

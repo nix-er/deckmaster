@@ -37,6 +37,18 @@ type Widget interface {
 	Failed()
 }
 
+// output is what widgets show their images and LED colors on: the device,
+// or a fake in tests.
+type output interface {
+	SetImage(index uint8, img image.Image) error
+	SetScreenSegmentImage(index uint8, img image.Image) error
+	SetInfoScreenImage(img image.Image) error
+	SetKeyColor(index uint8, c color.Color) error
+	SetDialKnobColor(index uint8, c color.Color) error
+	SetDialRingColor(index uint8, c color.Color) error
+	SetDialRingPercentage(index uint8, c color.Color, percent uint8) error
+}
+
 // BaseWidget provides common functionality required by all widgets.
 type BaseWidget struct {
 	base       string
@@ -44,6 +56,7 @@ type BaseWidget struct {
 	action     *ActionConfig
 	actionHold *ActionConfig
 	dev        *streamdeck.Device
+	out        output
 	background image.Image
 	lastUpdate time.Time
 	interval   time.Duration
@@ -138,7 +151,7 @@ func (w *BaseWidget) Failed() {
 
 // Update renders the widget.
 func (w *BaseWidget) Update() error {
-	return w.render(w.dev, nil)
+	return w.render(nil)
 }
 
 // NewBaseWidget returns a new BaseWidget for a key.
@@ -154,6 +167,7 @@ func NewBaseWidget(dev *streamdeck.Device, base string, index uint8, action, act
 		action:     action,
 		actionHold: actionHold,
 		dev:        dev,
+		out:        dev,
 		background: bg,
 		display:    d,
 	}
@@ -290,7 +304,7 @@ func withDefaults(wc WidgetConfig, format, font string) WidgetConfig {
 }
 
 // renders the widget including its background image.
-func (w *BaseWidget) render(dev *streamdeck.Device, fg image.Image) error {
+func (w *BaseWidget) render(fg image.Image) error {
 	w.lastUpdate = time.Now()
 
 	img := image.NewRGBA(w.canvas())
@@ -306,16 +320,16 @@ func (w *BaseWidget) render(dev *streamdeck.Device, fg image.Image) error {
 
 	switch w.display {
 	case displaySegment:
-		return dev.SetScreenSegmentImage(w.key, img)
+		return w.out.SetScreenSegmentImage(w.key, img)
 	case displayInfo:
-		return dev.SetInfoScreenImage(img)
+		return w.out.SetInfoScreenImage(img)
 	case displayNone:
-		if w.key >= dev.Keys && w.key < dev.Keys+dev.TouchKeys {
-			return dev.SetKeyColor(w.key, ledColor(w.led))
+		if w.key >= w.dev.Keys && w.key < w.dev.Keys+w.dev.TouchKeys {
+			return w.out.SetKeyColor(w.key, ledColor(w.led))
 		}
 		return nil
 	}
-	return dev.SetImage(w.key, img)
+	return w.out.SetImage(w.key, img)
 }
 
 // ledColor returns the color to set an LED to, black (off) for nil.

@@ -97,7 +97,7 @@ func (w *ButtonWidget) Update() error {
 		return err
 	}
 
-	return w.render(w.dev, img)
+	return w.render(img)
 }
 
 // drawIconBesideLabel draws the icon on the left and the label on the right,
