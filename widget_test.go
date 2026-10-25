@@ -238,3 +238,26 @@ func TestTopWidgetMode(t *testing.T) {
 		}
 	}
 }
+
+func TestRecentWindowRange(t *testing.T) {
+	path := writeDeck(t, `
+[[keys]]
+  index = 0
+  [keys.widget]
+    id = "recentWindow"
+    [keys.widget.config]
+      window = 256
+`)
+	if _, err := LoadDeck(xlDevice(), ".", path); err == nil || !strings.Contains(err.Error(), "window must be between 0 and 255") {
+		t.Errorf("got error %v, want a window range error", err)
+	}
+}
+
+func TestMsDuration(t *testing.T) {
+	if got := msDuration(1500); got != 1500*time.Millisecond {
+		t.Errorf("msDuration(1500) = %v", got)
+	}
+	if got := msDuration(^uint(0)); got <= 0 {
+		t.Errorf("msDuration(max) = %v, want it to saturate", got)
+	}
+}

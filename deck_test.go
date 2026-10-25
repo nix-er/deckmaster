@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 
@@ -78,6 +79,81 @@ func TestSplitCommand(t *testing.T) {
 	for _, cmd := range []string{`echo 'a`, `echo "a`, `echo a\`} {
 		if _, err := splitCommand(cmd); err == nil {
 			t.Errorf("splitCommand(%q): expected an error", cmd)
+		}
+	}
+}
+
+// fakeKeyboard records key events as "+key" and "-key".
+type fakeKeyboard struct{ events []string }
+
+func (k *fakeKeyboard) KeyDown(key int) error {
+	k.events = append(k.events, fmt.Sprintf("+%d", key))
+	return nil
+}
+
+func (k *fakeKeyboard) KeyUp(key int) error {
+	k.events = append(k.events, fmt.Sprintf("-%d", key))
+	return nil
+}
+
+func (k *fakeKeyboard) Close() error { return nil }
+
+func withFakeKeyboard(t *testing.T) *fakeKeyboard {
+	t.Helper()
+	kb := &fakeKeyboard{}
+	old := keyboard
+	keyboard = kb
+	t.Cleanup(func() { keyboard = old })
+	return kb
+}
+
+func TestEmulateKeyPresses(t *testing.T) {
+	tests := []struct {
+		keys string
+		want []string
+	}{
+		{"30", []string{"+30", "-30"}},
+		// modifiers are held until the last key is released
+		{"29-42-47", []string{"+29", "+42", "+47", "-47", "-42", "-29"}},
+		{"30/31+1", []string{"+30", "-30", "+31", "-31"}},
+		// nothing is pressed when a key in a combination is invalid
+		{"29-nosuchkey", nil},
+	}
+	for _, tt := range tests {
+		kb := withFakeKeyboard(t)
+		emulateKeyPresses(tt.keys)
+		if !reflect.DeepEqual(kb.events, tt.want) {
+			t.Errorf("emulateKeyPresses(%q) = %v, want %v", tt.keys, kb.events, tt.want)
+		}
+	}
+}
+
+func TestTurnDial(t *testing.T) {
+	d := &Deck{Dials: map[uint8]DialConfig{
+		0: {
+			ActionLeft:  &ActionConfig{Keycode: "1"},
+			ActionRight: &ActionConfig{Keycode: "2"},
+		},
+	}}
+	tests := []struct {
+		index uint8
+		steps int8
+		want  int
+		key   string
+	}{
+		{0, 3, 3, "+2"},
+		{0, -2, 2, "+1"},
+		{0, 100, maxDialSteps, "+2"},
+		{1, 3, 0, ""}, // no such dial
+	}
+	for _, tt := range tests {
+		kb := withFakeKeyboard(t)
+		d.turnDial(nil, tt.index, tt.steps)
+		if got := len(kb.events) / 2; got != tt.want {
+			t.Errorf("turnDial(%d, %d): %d presses, want %d", tt.index, tt.steps, got, tt.want)
+		}
+		if tt.want > 0 && kb.events[0] != tt.key {
+			t.Errorf("turnDial(%d, %d): pressed %s, want %s", tt.index, tt.steps, kb.events[0], tt.key)
 		}
 	}
 }
