@@ -1,9 +1,9 @@
 # deckmaster
 
-[![Latest Release](https://img.shields.io/github/release/muesli/deckmaster.svg?style=for-the-badge)](https://github.com/muesli/deckmaster/releases)
+[![Latest Release](https://img.shields.io/github/release/nix-er/deckmaster.svg?style=for-the-badge)](https://github.com/nix-er/deckmaster/releases)
 [![Go Doc](https://img.shields.io/badge/godoc-reference-blue.svg?style=for-the-badge)](https://pkg.go.dev/github.com/nix-er/deckmaster)
 [![Software License](https://img.shields.io/badge/license-MIT-blue.svg?style=for-the-badge)](/LICENSE)
-[![Build Status](https://img.shields.io/github/actions/workflow/status/nix-er/deckmaster/build.yml?branch=master&style=for-the-badge)](https://github.com/nix-er/deckmaster/actions)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/nix-er/deckmaster/ci.yml?branch=master&style=for-the-badge)](https://github.com/nix-er/deckmaster/actions)
 [![Go ReportCard](https://goreportcard.com/badge/github.com/nix-er/deckmaster?style=for-the-badge)](https://goreportcard.com/report/nix-er/deckmaster)
 
 An application to control your Elgato Stream Deck on Linux
@@ -53,9 +53,8 @@ protocol, but hasn't been tested on hardware yet. Please report how it works!
 
 ### Packages
 
-- Arch Linux: [deckmaster](https://aur.archlinux.org/packages/deckmaster/)
-- [Packages](https://github.com/muesli/deckmaster/releases) in Alpine, Debian & RPM formats
-- [Binaries](https://github.com/muesli/deckmaster/releases) for various architectures
+- [Packages](https://github.com/nix-er/deckmaster/releases) in Alpine, Debian & RPM formats
+- [Binaries](https://github.com/nix-er/deckmaster/releases) for x86_64, arm64 and armv7
 
 ### From source
 
@@ -611,7 +610,7 @@ Made your own useful decks? Submit a pull request!
 
 ## Feedback
 
-Got some feedback or suggestions? Please open an issue or drop me a note!
+Got some feedback or suggestions? Please [open an issue](https://github.com/nix-er/deckmaster/issues).
 
-* [Twitter](https://twitter.com/mueslix)
-* [The Fediverse](https://mastodon.social/@fribbledom)
+deckmaster is a fork of [muesli/deckmaster](https://github.com/muesli/deckmaster)
+by Christian Muehlhaeuser.
