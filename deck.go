@@ -220,15 +220,19 @@ func emulateKeyPress(keys string) {
 	}
 }
 
-// emulates a clipboard paste.
-func emulateClipboard(text string) {
+// emulates a clipboard paste with the given keys, ctrl-v by default.
+func emulateClipboard(text, keys string) {
 	err := copyToClipboard(text)
 	if err != nil {
+		// don't paste whatever is on the clipboard instead
 		fmt.Fprintf(os.Stderr, "Pasting to clipboard failed: %s\n", err)
+		return
 	}
 
-	// paste the string
-	emulateKeyPress("29-47") // ctrl-v
+	if keys == "" {
+		keys = "29-47" // ctrl-v
+	}
+	emulateKeyPresses(keys)
 }
 
 // parseDBusValue turns a dbus action value into method arguments. An empty
@@ -521,7 +525,7 @@ func (d *Deck) runAction(dev *streamdeck.Device, a *ActionConfig) {
 		emulateKeyPresses(a.Keycode)
 	}
 	if a.Paste != "" {
-		emulateClipboard(a.Paste)
+		emulateClipboard(a.Paste, a.PasteKeys)
 	}
 	if a.DBus.Method != "" {
 		go executeDBusMethod(a.DBus.Object, a.DBus.Path, a.DBus.Method, a.DBus.Value)

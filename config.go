@@ -24,12 +24,13 @@ type DBusConfig struct {
 
 // ActionConfig describes an action that can be triggered.
 type ActionConfig struct {
-	Deck    string     `toml:"deck,omitempty"`
-	Keycode string     `toml:"keycode,omitempty"`
-	Exec    string     `toml:"exec,omitempty"`
-	Paste   string     `toml:"paste,omitempty"`
-	Device  string     `toml:"device,omitempty"`
-	DBus    DBusConfig `toml:"dbus,omitempty"`
+	Deck      string     `toml:"deck,omitempty"`
+	Keycode   string     `toml:"keycode,omitempty"`
+	Exec      string     `toml:"exec,omitempty"`
+	Paste     string     `toml:"paste,omitempty"`
+	PasteKeys string     `toml:"paste_keys,omitempty"`
+	Device    string     `toml:"device,omitempty"`
+	DBus      DBusConfig `toml:"dbus,omitempty"`
 }
 
 // WidgetConfig describes configuration data for widgets.

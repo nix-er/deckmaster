@@ -432,6 +432,15 @@ This copies the text to the clipboard and presses ctrl-v. It needs `wl-copy`
 (from wl-clipboard) on Wayland, or `xclip` or `xsel` on X11; the Nix package
 brings its own.
 
+Most terminals, such as Ghostty, paste with ctrl-shift-v instead. Set
+`paste_keys` to the keys to press, written like a `keycode`:
+
+```toml
+[keys.action]
+  paste = "some text"
+  paste_keys = "Leftctrl-Leftshift-V"
+```
+
 #### Trigger a dbus call
 
 ```toml

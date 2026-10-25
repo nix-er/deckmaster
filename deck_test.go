@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"reflect"
 	"testing"
 
@@ -155,5 +156,37 @@ func TestTurnDial(t *testing.T) {
 		if tt.want > 0 && kb.events[0] != tt.key {
 			t.Errorf("turnDial(%d, %d): pressed %s, want %s", tt.index, tt.steps, kb.events[0], tt.key)
 		}
+	}
+}
+
+func TestEmulateClipboard(t *testing.T) {
+	bin := t.TempDir()
+	fakeTool(t, bin, "wl-copy")
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	t.Setenv("WAYLAND_DISPLAY", "wayland-1")
+
+	tests := []struct {
+		keys string
+		want []string
+	}{
+		{"", []string{"+29", "+47", "-47", "-29"}},
+		{"Leftctrl-Leftshift-V", []string{"+29", "+42", "+47", "-47", "-42", "-29"}},
+	}
+	for _, tt := range tests {
+		kb := withFakeKeyboard(t)
+		emulateClipboard("hello", tt.keys)
+		if !reflect.DeepEqual(kb.events, tt.want) {
+			t.Errorf("emulateClipboard(%q) pressed %v, want %v", tt.keys, kb.events, tt.want)
+		}
+	}
+
+	// nothing is pasted when copying fails
+	t.Setenv("PATH", t.TempDir())
+	t.Setenv("XDG_RUNTIME_DIR", t.TempDir())
+	t.Setenv("WAYLAND_DISPLAY", "")
+	kb := withFakeKeyboard(t)
+	emulateClipboard("hello", "")
+	if len(kb.events) != 0 {
+		t.Errorf("pressed %v after copying failed, want nothing", kb.events)
 	}
 }
