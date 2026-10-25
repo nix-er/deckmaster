@@ -1,9 +1,10 @@
 # deckmaster
 
 [![Latest Release](https://img.shields.io/github/release/nix-er/deckmaster.svg?style=for-the-badge)](https://github.com/nix-er/deckmaster/releases)
-[![Go Doc](https://img.shields.io/badge/godoc-reference-blue.svg?style=for-the-badge)](https://pkg.go.dev/github.com/nix-er/deckmaster)
 [![Software License](https://img.shields.io/badge/license-MIT-blue.svg?style=for-the-badge)](/LICENSE)
 [![Build Status](https://img.shields.io/github/actions/workflow/status/nix-er/deckmaster/ci.yml?branch=master&style=for-the-badge)](https://github.com/nix-er/deckmaster/actions)
+![Go Version](https://img.shields.io/github/go-mod/go-version/nix-er/deckmaster?style=for-the-badge)
+[![Nix Flake](https://img.shields.io/badge/nix-flake-5277C3?style=for-the-badge&logo=nixos&logoColor=white)](#nix)
 
 An application to control your Elgato Stream Deck on Linux
 
