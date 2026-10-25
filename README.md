@@ -80,18 +80,32 @@ The repository is a Nix flake. To run deckmaster without installing it:
 
     nix run github:nix-er/deckmaster -- -deck main.deck
 
-To add it to a NixOS configuration, add the flake as an input and use its
-package. The package also ships the udev rules described below:
+To add it to a NixOS configuration, add the flake as an input and import its
+module. It installs deckmaster and the udev rules described below and, when
+`deck` is set, runs deckmaster as a systemd user service in your graphical
+session:
 
 ```nix
 {
   inputs.deckmaster.url = "github:nix-er/deckmaster";
 
-  # in your NixOS module:
-  environment.systemPackages = [ inputs.deckmaster.packages.${pkgs.stdenv.hostPlatform.system}.default ];
-  services.udev.packages = [ inputs.deckmaster.packages.${pkgs.stdenv.hostPlatform.system}.default ];
+  # in your NixOS configuration:
+  imports = [ inputs.deckmaster.nixosModules.default ];
+  programs.deckmaster = {
+    enable = true;
+    deck = "~/.config/deckmaster/main.deck"; # optional
+    brightness = 50;
+  };
 }
 ```
+
+If you use home-manager, you can run the service from there instead with
+`inputs.deckmaster.homeManagerModules.default` and `services.deckmaster`, which
+takes the same options. Keep `programs.deckmaster.enable` in your NixOS
+configuration for the udev rules. Both modules also accept `keyboard`, `device`,
+`sleep` and `extraArgs`.
+
+`overlays.default` adds `pkgs.deckmaster`, if you'd rather use the package directly.
 
 `nix develop` opens a shell with Go, a C compiler, golangci-lint and goreleaser.
 
@@ -116,6 +130,8 @@ optional `-keyboard uinput` backend needs write access to `/dev/uinput`; see
 the commented rule at the end of the file.
 
 ### Starting deckmaster automatically
+
+On NixOS, set `deck` in the [Nix](#nix) module instead.
 
 If you want deckmaster to be started automatically upon device plugin, you can
 use systemd path activation, adding `streamdeck.path` and `streamdeck.service`
