@@ -32,10 +32,10 @@ archives:
 nfpms:
   - ids:
       - deckmaster
-    vendor: muesli
-    homepage: "https://fribbledom.com/"
-    maintainer: "Christian Muehlhaeuser <muesli@gmail.com>"
-    description: "An application to control your Elgato Stream Deck"
+    vendor: nix-er
+    homepage: "https://github.com/nix-er/deckmaster"
+    maintainer: "nix-er <nixer@nixer.dev>"
+    description: "An application to control your Elgato Stream Deck on Linux"
     license: MIT
     formats:
       - apk
@@ -51,8 +51,8 @@ nfpms:
 #    commit_author:
 #      name: "Christian Muehlhaeuser"
 #      email: "muesli@gmail.com"
-#    homepage: "https://fribbledom.com/"
-#    description: "An application to control your Elgato Stream Deck"
+#    homepage: "https://github.com/nix-er/deckmaster"
+#    description: "An application to control your Elgato Stream Deck on Linux"
 #    dependencies:
 #      - name: linux
 
