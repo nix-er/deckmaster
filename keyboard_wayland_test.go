@@ -6,7 +6,9 @@ package main
 import (
 	"bytes"
 	"encoding/binary"
+	"net"
 	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -88,6 +90,30 @@ func TestModifierMask(t *testing.T) {
 		if got := modifierMask(pressed); got != tt.want {
 			t.Errorf("modifierMask(%v) = %#x, want %#x", tt.pressed, got, tt.want)
 		}
+	}
+}
+
+func TestFindWaylandSocket(t *testing.T) {
+	dir := t.TempDir()
+	if _, ok := findWaylandSocket(dir); ok {
+		t.Error("found a socket in an empty directory")
+	}
+
+	for _, name := range []string{"wayland-2", "wayland-1", "niri.wayland-1.sock"} {
+		l, err := net.Listen("unix", filepath.Join(dir, name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer l.Close() //nolint:errcheck
+	}
+	// lock files are no sockets
+	if err := os.WriteFile(filepath.Join(dir, "wayland-0.lock"), nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	got, ok := findWaylandSocket(dir)
+	if want := filepath.Join(dir, "wayland-1"); !ok || got != want {
+		t.Errorf("got %q, %v, want %q", got, ok, want)
 	}
 }
 

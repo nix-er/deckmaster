@@ -221,3 +221,20 @@ func TestUpdateWidgetsKeepsRunning(t *testing.T) {
 	case <-time.After(100 * time.Millisecond):
 	}
 }
+
+// A top widget's mode is checked when the deck loads, not on every update.
+func TestTopWidgetMode(t *testing.T) {
+	for _, mode := range []string{"", "disk"} {
+		path := writeDeck(t, `
+[[keys]]
+  index = 0
+  [keys.widget]
+    id = "top"
+    [keys.widget.config]
+      mode = "`+mode+`"
+`)
+		if _, err := LoadDeck(xlDevice(), ".", path); err == nil || !strings.Contains(err.Error(), "unknown mode") {
+			t.Errorf("mode %q: got error %v, want unknown mode", mode, err)
+		}
+	}
+}

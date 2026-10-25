@@ -36,6 +36,9 @@ func NewTopWidget(bw *BaseWidget, opts WidgetConfig) (*TopWidget, error) {
 	if r.err != nil {
 		return nil, r.err
 	}
+	if mode != "cpu" && mode != "memory" {
+		return nil, fmt.Errorf("unknown mode %q, expected cpu or memory", mode)
+	}
 
 	return &TopWidget{
 		BaseWidget: bw,

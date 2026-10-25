@@ -11,6 +11,8 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -85,21 +87,59 @@ type waylandKeyboard struct {
 	pressed map[int]bool
 }
 
-// waylandSocket returns the path of the compositor's socket.
+// waylandSocket returns the path of the compositor's socket. Without
+// WAYLAND_DISPLAY, e.g. in a systemd service or a shell outside the session,
+// it picks the first wayland-N socket in the runtime directory.
 func waylandSocket() (string, error) {
-	display := os.Getenv("WAYLAND_DISPLAY")
-	if display == "" {
-		return "", errors.New("WAYLAND_DISPLAY is not set")
-	}
-	if filepath.IsAbs(display) {
-		return display, nil
-	}
-
 	runtime := os.Getenv("XDG_RUNTIME_DIR")
 	if runtime == "" {
-		return "", errors.New("XDG_RUNTIME_DIR is not set")
+		runtime = fmt.Sprintf("/run/user/%d", os.Getuid())
 	}
-	return filepath.Join(runtime, display), nil
+
+	display := os.Getenv("WAYLAND_DISPLAY")
+	if display != "" {
+		if filepath.IsAbs(display) {
+			return display, nil
+		}
+		return filepath.Join(runtime, display), nil
+	}
+
+	socket, ok := findWaylandSocket(runtime)
+	if !ok {
+		return "", fmt.Errorf("WAYLAND_DISPLAY is not set, and there is no wayland-N socket in %s", runtime)
+	}
+	verbosef("WAYLAND_DISPLAY is not set, using %s", socket)
+	return socket, nil
+}
+
+// findWaylandSocket returns the wayland-N socket with the lowest N in dir.
+func findWaylandSocket(dir string) (string, bool) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return "", false
+	}
+
+	best := -1
+	for _, e := range entries {
+		if e.Type()&os.ModeSocket == 0 {
+			continue
+		}
+		suffix, ok := strings.CutPrefix(e.Name(), "wayland-")
+		if !ok {
+			continue
+		}
+		n, err := strconv.Atoi(suffix)
+		if err != nil || n < 0 {
+			continue
+		}
+		if best < 0 || n < best {
+			best = n
+		}
+	}
+	if best < 0 {
+		return "", false
+	}
+	return filepath.Join(dir, fmt.Sprintf("wayland-%d", best)), true
 }
 
 func newWaylandKeyboard() (*waylandKeyboard, error) {

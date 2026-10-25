@@ -386,9 +386,9 @@ session, so they only reach the apps in it:
 
 - On Wayland, it uses the virtual keyboard protocol
   (`zwp_virtual_keyboard_manager_v1`), which niri, Hyprland, Sway, river and
-  other wlroots compositors support. deckmaster needs `WAYLAND_DISPLAY` in its
-  environment; when it runs as a systemd user service, make sure your
-  compositor imports it into the systemd environment.
+  other wlroots compositors support. deckmaster connects to `WAYLAND_DISPLAY`;
+  if that isn't set, e.g. in a systemd user service, it uses the first
+  `wayland-N` socket in `$XDG_RUNTIME_DIR`.
 - On X11, it uses the XTEST extension.
 
 Some compositors, such as niri, don't apply their own keybindings to virtual

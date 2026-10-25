@@ -157,6 +157,10 @@ func eventLoop(dev *streamdeck.Device, tch chan interface{}) error {
 				continue
 			}
 
+			// keys that lost their widget mustn't keep showing the old one
+			if err := dev.Clear(); err != nil {
+				fmt.Fprintln(os.Stderr, "Can't clear the device:", err)
+			}
 			deck = nd
 			deck.updateWidgets()
 
