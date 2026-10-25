@@ -1,0 +1,35 @@
+# Dependabot updates go.mod and go.sum but not vendorHash in flake.nix.
+# Recompute it on Dependabot PRs and push the fix to the PR branch.
+name: vendor-hash
+on:
+  pull_request:
+    paths: ["go.mod", "go.sum"]
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    if: github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.head_ref }}
+      - uses: cachix/install-nix-action@v31
+      - name: Update vendorHash
+        run: |
+          sed -i -E 's|vendorHash = "sha256-[^"]+";|vendorHash = nixpkgs.lib.fakeHash;|' flake.nix
+          hash=$(nix build .#deckmaster.goModules 2>&1 | sed -n -E 's/^ *got: *(sha256-[^ ]+)$/\1/p')
+          if [ -z "$hash" ]; then
+            echo "could not compute vendorHash" >&2
+            exit 1
+          fi
+          sed -i "s|vendorHash = nixpkgs.lib.fakeHash;|vendorHash = \"$hash\";|" flake.nix
+      - name: Push
+        run: |
+          git diff --quiet && exit 0
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "chore: update vendorHash"
+          git push
