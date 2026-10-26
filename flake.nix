@@ -185,6 +185,9 @@
           assert lib.assertMsg (
             !lib.hasInfix "DECKMASTER_ICON_PATH=" unitB
           ) "deckmaster-b.service ignores its own iconPacks";
+          assert lib.assertMsg (
+            !lib.hasInfix "PATH=" (lib.replaceStrings [ "DECKMASTER_ICON_PATH=" ] [ "" ] unitA)
+          ) "deckmaster-a.service replaces the session's PATH";
           pkgs.runCommand "deckmaster-instances" { } ''
             dir=$(grep -o -- '-deck [^ ]*/main\.deck' ${pkgs.writeText "a" unitA} | cut -d' ' -f2 | xargs dirname)
             test -f "$dir/main.deck"

@@ -32,6 +32,9 @@ in
       after = unit.Unit.After;
       wantedBy = unit.Install.WantedBy;
       serviceConfig = unit.Service;
+      # Keep the session's PATH for exec actions; NixOS would replace it with
+      # a minimal one.
+      enableDefaultPath = false;
     }) (service.units cfg);
   };
 }
