@@ -39,7 +39,9 @@ func rasterizeSVG(r io.Reader) (img image.Image, err error) {
 		return fmt.Appendf(nil, "%s%c%s%c", sub[1], quote, d, quote)
 	})
 
-	svg, err := oksvg.ReadIconStream(bytes.NewReader(data), oksvg.StrictErrorMode)
+	// Skip elements oksvg doesn't support, such as the <metadata> Inkscape
+	// writes into most app icons, instead of rejecting the whole file.
+	svg, err := oksvg.ReadIconStream(bytes.NewReader(data), oksvg.IgnoreErrorMode)
 	if err != nil {
 		return nil, err
 	}

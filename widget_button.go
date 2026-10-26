@@ -1,8 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"image"
 	"image/color"
+	"os"
 )
 
 // ButtonWidget is a simple widget displaying an icon and/or label.
@@ -45,9 +47,11 @@ func NewButtonWidget(bw *BaseWidget, opts WidgetConfig) (*ButtonWidget, error) {
 		color:      color,
 		flatten:    flatten,
 	}
+	// A broken icon leaves the key with its label, rather than failing the
+	// whole deck.
 	if icon != "" {
 		if err := w.LoadImage(icon); err != nil {
-			return nil, err
+			fmt.Fprintf(os.Stderr, "key %d: can't load icon %s: %s\n", bw.key, icon, err)
 		}
 	}
 

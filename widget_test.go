@@ -114,6 +114,31 @@ func TestInvalidWidgetOption(t *testing.T) {
 	}
 }
 
+// A button whose icon can't be loaded keeps its label instead of failing the
+// deck.
+func TestButtonBrokenIcon(t *testing.T) {
+	path := writeDeck(t, `
+[[keys]]
+  index = 0
+  [keys.widget]
+    id = "button"
+    [keys.widget.config]
+      icon = "/nonexistent/icon.png"
+      label = "Files"
+`)
+	deck, err := LoadDeck(xlDevice(), ".", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	w, ok := deck.Widgets[0].(*ButtonWidget)
+	if !ok {
+		t.Fatalf("key 0 is %T, want a button", deck.Widgets[0])
+	}
+	if w.icon != nil || w.label != "Files" {
+		t.Errorf("got icon %v, label %q; want no icon and the label", w.icon, w.label)
+	}
+}
+
 // Configuring a clock's color must not drop its default format and fonts,
 // and vice versa.
 func TestClockOptions(t *testing.T) {

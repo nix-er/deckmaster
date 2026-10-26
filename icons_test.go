@@ -72,6 +72,20 @@ func TestLoadImageSVGAspect(t *testing.T) {
 	}
 }
 
+// Elements oksvg doesn't support, like Inkscape's <metadata>, are skipped.
+func TestLoadImageSVGMetadata(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "app.svg")
+	writeFile(t, path, `<svg viewBox="0 0 10 10" xmlns="http://www.w3.org/2000/svg"><metadata><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"/></metadata><path fill="#f00" d="M0 0h10v10H0z"/></svg>`)
+
+	img, err := loadImage(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := color.RGBAModel.Convert(img.At(svgSize/2, svgSize/2)); got != (color.RGBA{255, 0, 0, 255}) {
+		t.Errorf("center pixel = %v, want red", got)
+	}
+}
+
 func TestLoadImageBadSVG(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "bad.svg")
 	writeFile(t, path, "not an svg")
@@ -166,13 +180,17 @@ func TestButtonWidgetIconName(t *testing.T) {
 	}
 }
 
+// An icon name that's in no pack leaves the button without an icon.
 func TestButtonWidgetIconNameMissing(t *testing.T) {
 	iconEnv(t)
-	_, err := NewWidget(xlDevice(), "", KeyConfig{Widget: WidgetConfig{ID: "button", Config: map[string]interface{}{
+	w, err := NewWidget(xlDevice(), "", KeyConfig{Widget: WidgetConfig{ID: "button", Config: map[string]interface{}{
 		"icon": "missing",
 	}}}, nil)
-	if err == nil {
-		t.Error("expected an error")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if icon := w.(*ButtonWidget).icon; icon != nil {
+		t.Errorf("got icon %v, want none", icon)
 	}
 }
 
