@@ -104,9 +104,49 @@ takes the same options. Keep `programs.deckmaster.enable` in your NixOS
 configuration for the udev rules. Both modules also accept `keyboard`, `device`,
 `sleep` and `extraArgs`.
 
+Instead of a deck file, `decks` takes the deck files as Nix, keyed by name
+without `.deck`. They're written to one directory, so they can refer to each
+other by file name, and deckmaster starts with `main`:
+
+```nix
+programs.deckmaster.decks = {
+  main.keys = [
+    { index = 0; widget.id = "clock"; }
+    {
+      index = 1;
+      widget = { id = "button"; config.label = "Media"; };
+      action.deck = "media.deck";
+    }
+  ];
+  media = { parent = "main.deck"; keys = [ ]; };
+};
+```
+
+Relative icon paths resolve in that directory too, so use icon packs or
+absolute paths (`icon = "${./icons/mute.svg}"`).
+
+To use several Stream Decks at once, add one entry to `instances` per device.
+Each one runs as its own `deckmaster-<name>` user service, takes the same
+options as the top level and needs the device's serial number, which
+`deckmaster -device x` lists:
+
+```nix
+programs.deckmaster.instances = {
+  plus = {
+    device = "A00WA0000000";
+    decks.main = { ... };
+  };
+  xl = {
+    device = "A00NA0000000";
+    deck = "~/.config/deckmaster/xl.deck";
+  };
+};
+```
+
 `iconPacks` adds [icon packs](#icon-packs) to the service, so deck files can use
-icons by name. The flake packages Simple Icons, which Nix fetches from the pack's
-release at build time:
+icons by name. Instances use the top-level packs unless they set their own. The
+flake packages Simple Icons, which Nix fetches from the pack's release at build
+time:
 
 ```nix
 programs.deckmaster.iconPacks = [ inputs.deckmaster.packages.${pkgs.system}.simple-icons ];

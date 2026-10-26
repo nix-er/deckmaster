@@ -124,6 +124,73 @@
           assert nixpkgs.lib.assertMsg (nixpkgs.lib.hasInfix "DECKMASTER_ICON_PATH=" unit)
             "deckmaster.service doesn't set DECKMASTER_ICON_PATH";
           pkgs.writeText "deckmaster.service" unit;
+
+        # Two instances, one with decks as Nix: each gets its own unit and
+        # device, and the decks land in one directory.
+        nixos-module-instances =
+          let
+            inherit (nixpkgs) lib;
+            system = lib.nixosSystem {
+              modules = [
+                self.nixosModules.default
+                {
+                  nixpkgs.hostPlatform = pkgs.stdenv.hostPlatform.system;
+                  boot.loader.grub.enable = false;
+                  # Evaluating assertions reads the root file system type.
+                  fileSystems."/" = {
+                    device = "nodev";
+                    fsType = "tmpfs";
+                  };
+                  system.stateVersion = "25.11";
+                  programs.deckmaster = {
+                    enable = true;
+                    iconPacks = [ self.packages.${pkgs.stdenv.hostPlatform.system}.simple-icons ];
+                    instances = {
+                      a = {
+                        device = "SERIAL-A";
+                        decks = {
+                          main.keys = [
+                            {
+                              index = 0;
+                              widget.id = "clock";
+                              action.deck = "media.deck";
+                            }
+                          ];
+                          media.parent = "main.deck";
+                        };
+                      };
+                      b = {
+                        device = "SERIAL-B";
+                        deck = "~/b.deck";
+                        iconPacks = [ ];
+                      };
+                    };
+                  };
+                }
+              ];
+            };
+            inherit (system.config.systemd.user) units;
+            unitA = units."deckmaster-a.service".text;
+            unitB = units."deckmaster-b.service".text;
+            failed = map (a: a.message) (lib.filter (a: !a.assertion) system.config.assertions);
+          in
+          assert lib.assertMsg (failed == [ ]) (lib.concatStringsSep "\n" failed);
+          assert lib.assertMsg (!units ? "deckmaster.service") "deckmaster.service exists without a deck";
+          assert lib.assertMsg (lib.hasInfix "-device SERIAL-A" unitA)
+            "deckmaster-a.service has the wrong device";
+          assert lib.assertMsg (lib.hasInfix "-device SERIAL-B" unitB)
+            "deckmaster-b.service has the wrong device";
+          assert lib.assertMsg (lib.hasInfix "DECKMASTER_ICON_PATH=" unitA)
+            "deckmaster-a.service doesn't inherit iconPacks";
+          assert lib.assertMsg (
+            !lib.hasInfix "DECKMASTER_ICON_PATH=" unitB
+          ) "deckmaster-b.service ignores its own iconPacks";
+          pkgs.runCommand "deckmaster-instances" { } ''
+            dir=$(grep -o -- '-deck [^ ]*/main\.deck' ${pkgs.writeText "a" unitA} | cut -d' ' -f2 | xargs dirname)
+            test -f "$dir/main.deck"
+            grep -q 'parent = "main.deck"' "$dir/media.deck"
+            cat ${pkgs.writeText "a" unitA} ${pkgs.writeText "b" unitB} > $out
+          '';
       });
 
       devShells = forAllSystems (pkgs: {

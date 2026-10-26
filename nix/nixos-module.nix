@@ -1,5 +1,6 @@
 # NixOS module: installs deckmaster and its udev rules, and optionally runs it
-# as a systemd user service for every user with a graphical session.
+# as systemd user services, one per Stream Deck, for every user with a
+# graphical session.
 self:
 {
   config,
@@ -13,7 +14,6 @@ let
     inherit lib pkgs;
     package = self.packages.${pkgs.stdenv.hostPlatform.system}.default;
   };
-  unit = service.unit cfg;
 in
 {
   options.programs.deckmaster = service.options // {
@@ -21,15 +21,17 @@ in
   };
 
   config = lib.mkIf cfg.enable {
+    assertions = service.assertions cfg;
+
     environment.systemPackages = [ cfg.package ];
     services.udev.packages = [ cfg.package ];
 
-    systemd.user.services.deckmaster = lib.mkIf (cfg.deck != null) {
+    systemd.user.services = lib.mapAttrs (_: unit: {
       description = unit.Unit.Description;
       partOf = unit.Unit.PartOf;
       after = unit.Unit.After;
       wantedBy = unit.Install.WantedBy;
       serviceConfig = unit.Service;
-    };
+    }) (service.units cfg);
   };
 }
